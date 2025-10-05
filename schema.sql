@@ -168,10 +168,11 @@ DECLARE
   is_within_working_hours BOOLEAN := FALSE;
   time_range TEXT;
 BEGIN
-  -- Fetch partner details
+  -- Fetch partner details and lock the row for update
   SELECT category, confirmation_mode, booking_system_type, daily_booking_limit, working_hours
   INTO partner_data
-  FROM public.medical_partners WHERE id = partner_id_arg;
+  FROM public.medical_partners WHERE id = partner_id_arg
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Medical partner not found.';
@@ -415,9 +416,7 @@ BEGIN
     SELECT
       -- Generate a series of timestamps for each working period of the day
       generate_series(
-        -- --- MODIFIED: Use split_part to correctly parse the start time ---
         (day_arg + split_part(range_item, '-', 1)::TIME)::TIMESTAMPTZ,
-        -- --- MODIFIED: Use split_part to correctly parse the end time ---
         (day_arg + split_part(range_item, '-', 2)::TIME)::TIMESTAMPTZ - (partner_settings.appointment_dur * interval '1 minute'),
         (partner_settings.appointment_dur * interval '1 minute')
       ) AS slot_time
@@ -427,7 +426,7 @@ BEGIN
   SELECT aps.slot_time
   FROM all_possible_slots aps
   WHERE
-    aps.slot_time > now() AND
+    aps.slot_time > (now() at time zone 'utc') AND
     NOT EXISTS (
       SELECT 1
       FROM public.appointments a
@@ -747,7 +746,7 @@ BEGIN
       SELECT id, booking_user_id FROM public.appointments
       WHERE partner_id = partner_settings.id
         AND status = 'Confirmed'
-        AND appointment_time BETWEEN now() AND now() + interval '30 minutes'
+        AND appointment_time BETWEEN (now() at time zone 'utc') AND (now() at time zone 'utc') + interval '30 minutes'
     LOOP
       PERFORM net.http_post(
         url:='https://jtoeizfokgydtsqdciuu.supabase.co/functions/v1/send-notification',
@@ -863,13 +862,13 @@ BEGIN
     FROM public.appointments a
     WHERE a.status = 'Confirmed'
     AND (
-      (a.appointment_time > now() + interval '23 hours' AND a.appointment_time < now() + interval '25 hours')
+      (a.appointment_time > (now() at time zone 'utc') + interval '23 hours' AND a.appointment_time < (now() at time zone 'utc') + interval '25 hours')
       OR
-      (a.appointment_time > now() AND a.appointment_time < now() + interval '2 hours')
+      (a.appointment_time > (now() at time zone 'utc') AND a.appointment_time < (now() at time zone 'utc') + interval '2 hours')
     )
   LOOP
     SELECT full_name INTO partner_name FROM public.medical_partners WHERE id = upcoming_appointment.partner_id;
-    IF upcoming_appointment.appointment_time > now() + interval '23 hours' THEN
+    IF upcoming_appointment.appointment_time > (now() at time zone 'utc') + interval '23 hours' THEN
       PERFORM net.http_post(
         url:='https://jtoeizfokgydtsqdciuu.supabase.co/functions/v1/send-notification',
         headers:=jsonb_build_object('Content-Type', 'application/json','Authorization', 'Bearer ' || current_setting('request.jwt.claim.raw', true)),
@@ -946,7 +945,7 @@ BEGIN
   IF target_appointment.has_review = TRUE THEN
     RAISE EXCEPTION 'A review has already been submitted for this appointment.';
   END IF;
-  IF target_appointment.completed_at IS NULL OR now() > target_appointment.completed_at + INTERVAL '2 hours' THEN
+  IF target_appointment.completed_at IS NULL OR (now() at time zone 'utc') > target_appointment.completed_at + INTERVAL '2 hours' THEN
     RAISE EXCEPTION 'The 2-hour window to submit a review has passed.';
   END IF;
   INSERT INTO public.reviews(appointment_id, user_id, partner_id, rating, review_text)
@@ -969,14 +968,14 @@ BEGIN
   UPDATE public.appointments AS a
   SET
     status = 'Completed',
-    completed_at = now()
+    completed_at = (now() at time zone 'utc')
   FROM
     public.medical_partners AS mp
   WHERE
     a.partner_id = mp.id AND
     a.status = 'Confirmed' AND
     a.appointment_number IS NULL AND
-    (a.appointment_time + (mp.appointment_dur * INTERVAL '1 minute')) < now();
+    (a.appointment_time + (mp.appointment_dur * INTERVAL '1 minute')) < (now() at time zone 'utc');
 END;
 $$;
 

@@ -80,7 +80,7 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
     try {
       final userData = await Supabase.instance.client
           .from('users')
-          .select('first_name, last_name, notifications_enabled')
+          .select('first_name, last_name, email, notifications_enabled')
           .eq('id', currentUserUid)
           .single();
 
@@ -89,7 +89,7 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
           _userName =
               '${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}'
                   .trim();
-          _userEmail = currentUserEmail;
+          _userEmail = userData['email'] ?? currentUserEmail;
           _notificationsEnabled = userData['notifications_enabled'] ?? true;
         });
       }
@@ -138,7 +138,7 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
                 subtitle: FFLocalizations.of(context).getText('rcvalerts'),
                 trailing: Switch.adaptive(
                   value: _notificationsEnabled,
-                  activeTrackColor: theme.primary,
+                  activeColor: theme.primary,
                   onChanged: (newValue) {
                     setState(() => _notificationsEnabled = newValue);
                     _updateNotificationPreference(newValue);
@@ -166,6 +166,12 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
                     }
                   },
                   underline: const SizedBox.shrink(),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: theme.secondaryText,
+                  ),
+                  dropdownColor: theme.secondaryBackground,
+                  style: theme.bodyMedium,
                 ),
               ),
               SettingsItem(
@@ -173,7 +179,7 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
                 title: FFLocalizations.of(context).getText('darkmode'),
                 trailing: Switch.adaptive(
                   value: isDarkMode,
-                  activeTrackColor: theme.primary,
+                  activeColor: theme.primary,
                   onChanged: (isDarkMode) {
                     final newMode =
                         isDarkMode ? ThemeMode.dark : ThemeMode.light;
@@ -351,15 +357,10 @@ class _PartnerSettingsViewState extends State<_PartnerSettingsView> {
               'Sunday': '7',
             };
             (initialData as Map).forEach((key, value) {
-              if (int.tryParse(key) != null &&
-                  int.parse(key) >= 1 &&
-                  int.parse(key) <= 7) {
+              if (dayNameToKey.containsValue(key)) {
                 cleanedData[key] = List<String>.from(value);
               } else if (dayNameToKey.containsKey(key)) {
-                final correctKey = dayNameToKey[key]!;
-                if (!cleanedData.containsKey(correctKey)) {
-                  cleanedData[correctKey] = List<String>.from(value);
-                }
+                cleanedData[dayNameToKey[key]!] = List<String>.from(value);
               }
             });
             _workingHours = cleanedData;
@@ -1086,8 +1087,8 @@ void _showDeleteAccountDialog(BuildContext context) {
           onPressed: () async {
             try {
               await Supabase.instance.client.rpc('delete_user_account');
-              await authManager.signOut();
               if (context.mounted) {
+                await authManager.signOut();
                 context.go(WelcomeScreenWidget.routePath);
               }
             } catch (e) {

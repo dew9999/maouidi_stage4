@@ -1407,7 +1407,6 @@ class _AnalyticsViewContent extends StatelessWidget {
                         }
                         final day =
                             weeklyStats[value.toInt()]['day_of_week'] as String;
-                        // FINAL FIX: This is the correct implementation
                         return Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(day, style: theme.bodySmall),

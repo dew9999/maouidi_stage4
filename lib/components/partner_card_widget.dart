@@ -50,7 +50,6 @@ class PartnerCardWidget extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: Image.network(
-                      // --- FIX: Using the renamed constant ---
                       partner.photoUrl ?? defaultAvatarUrl,
                       width: 90,
                       height: 90,

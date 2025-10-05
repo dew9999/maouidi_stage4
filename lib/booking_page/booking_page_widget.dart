@@ -264,6 +264,8 @@ class __NumberQueueBookingViewState extends State<_NumberQueueBookingView> {
           errorMessage = FFLocalizations.of(context).getText('alrdyappt');
         } else if (e.message.contains('fully booked')) {
           errorMessage = 'This provider is fully booked today.';
+        } else {
+          errorMessage = e.message;
         }
       } else {
         errorMessage =

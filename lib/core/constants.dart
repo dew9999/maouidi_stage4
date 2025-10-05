@@ -115,6 +115,5 @@ const List<String> algerianStates = [
   'El M\'Ghair',
   'El Meniaa'
 ];
-// --- FIX: Renamed constant to lowerCamelCase ---
 const String defaultAvatarUrl =
     'https://storage.googleapis.com/flutterflow-io-6f20.appspot.com/projects/health-app-j75f2j/assets/7957s72h1p38/avatar-default.png';
