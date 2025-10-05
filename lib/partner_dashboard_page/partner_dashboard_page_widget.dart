@@ -402,7 +402,7 @@ class _ClinicScheduleViewState extends State<_ClinicScheduleView> {
               }
               final doctors = snapshot.data!;
               return DropdownButtonFormField<String>(
-                value: _selectedDoctorId,
+                initialValue: _selectedDoctorId,
                 hint: Text(FFLocalizations.of(context).getText('fltrdoc')),
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
