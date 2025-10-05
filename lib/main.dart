@@ -20,8 +20,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
 
+  // Load environment variables
   await dotenv.load(fileName: ".env");
 
+  // Centralized Supabase initialization
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,

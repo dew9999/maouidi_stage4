@@ -1,7 +1,7 @@
 // lib/auth/supabase_auth/auth_util.dart
 
 import 'dart:async';
-import 'package:rxdart/rxdart.dart';
+// 'rxdart' is no longer needed, so we remove it.
 import 'package:maouidi/backend/supabase/supabase.dart';
 import '../base_auth_user_provider.dart';
 import '../auth_manager.dart';
@@ -22,25 +22,16 @@ String get currentJwtToken =>
         : null) ??
     '';
 
-// THIS IS THE CORRECTED, REAL-TIME STREAM
 Stream<BaseAuthUser?> maouidiSupabaseUserStream() {
-  final supabaseAuthStream = SupaFlow.client.auth.onAuthStateChange.debounce(
-      (authState) => authState.event == AuthChangeEvent.tokenRefreshed
-          ? TimerStream(authState, const Duration(seconds: 1))
-          : Stream.value(authState));
-  return (!loggedIn
-          ? Stream<AuthState?>.value(null).concatWith([supabaseAuthStream])
-          : supabaseAuthStream)
-      .map<BaseAuthUser?>(
-    (authState) {
-      // Set the global variable
-      currentUser = authState?.session?.user == null
-          ? null
-          : MaouidiSupabaseUser(authState!.session!.user);
-      // Return the user for the stream
-      return currentUser;
-    },
-  );
+  final supabaseAuthStream = SupaFlow.client.auth.onAuthStateChange;
+  return supabaseAuthStream.map((authState) {
+    // --- THIS IS THE FIX ---
+    // This is a cleaner way to handle the logic that avoids all warnings.
+    final user = authState.session?.user;
+    currentUser = user == null ? null : MaouidiSupabaseUser(user);
+    return currentUser;
+    // -----------------------
+  });
 }
 
 final jwtTokenStream = SupaFlow.client.auth.onAuthStateChange

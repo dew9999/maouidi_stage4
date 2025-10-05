@@ -34,7 +34,7 @@ class HomecareDetailsView extends StatelessWidget {
         decoration: BoxDecoration(
           // --- THIS IS THE REAL FIX ---
           color: lightTheme
-              ? const Color.fromRGBO(255, 255, 255, 0.1)
+              ? theme.primary.withOpacity(0.2)
               : theme.primaryBackground,
           borderRadius: BorderRadius.circular(8),
         ),

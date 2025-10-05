@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'login_model.dart';
 export 'login_model.dart';
+// Import Supabase exceptions to catch specific errors
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginWidget extends StatefulWidget {
   const LoginWidget({super.key});
@@ -77,9 +79,6 @@ class _LoginWidgetState extends State<LoginWidget>
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
         body: SafeArea(
-          // --- THIS IS THE FIX ---
-          top: true,
-          // ----------------------
           child: Align(
             alignment: const AlignmentDirectional(0.0, 0.0),
             child: Container(
@@ -308,18 +307,44 @@ class _LoginWidgetState extends State<LoginWidget>
                                         false)) {
                                       return;
                                     }
-                                    final user =
-                                        await authManager.signInWithEmail(
-                                      context,
-                                      _model.emailAddressTextController!.text,
-                                      _model.passwordTextController!.text,
-                                    );
-                                    if (user == null) {
-                                      return;
+                                    // --- THIS IS THE FIX ---
+                                    try {
+                                      final user =
+                                          await authManager.signInWithEmail(
+                                        context,
+                                        _model.emailAddressTextController!.text,
+                                        _model.passwordTextController!.text,
+                                      );
+                                      if (user == null) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'An unknown error occurred.'),
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+                                      if (mounted) {
+                                        context.goNamed('HomePage');
+                                      }
+                                    } on AuthException catch (e) {
+                                      // Catch specific Supabase auth errors
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(e.message),
+                                            backgroundColor:
+                                                FlutterFlowTheme.of(context)
+                                                    .error,
+                                          ),
+                                        );
+                                      }
                                     }
-                                    if (context.mounted) {
-                                      context.goNamed('HomePage');
-                                    }
+                                    // --------------------------
                                   },
                                   text: FFLocalizations.of(context).getText(
                                     'j50kiywl',

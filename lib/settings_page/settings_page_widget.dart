@@ -1,7 +1,7 @@
 // lib/settings_page/settings_page_widget.dart
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../../auth/supabase_auth/auth_util.dart';
 import '../../core/constants.dart';
 import '../../backend/supabase/supabase.dart';
@@ -18,6 +18,7 @@ import 'components/settings_group.dart';
 import 'components/settings_item.dart';
 import 'components/become_partner_dialog.dart';
 import 'components/profile_card.dart';
+import 'components/settings_dialogs.dart'; // Import the new dialogs file
 
 class SettingsPageWidget extends StatefulWidget {
   const SettingsPageWidget({super.key});
@@ -54,7 +55,7 @@ class _SettingsPageWidgetState extends State<SettingsPageWidget> {
 }
 
 // =====================================================================
-//                       PATIENT SETTINGS VIEW (CORRECTED)
+//                       PATIENT SETTINGS VIEW
 // =====================================================================
 
 class _PatientSettingsView extends StatefulWidget {
@@ -64,8 +65,6 @@ class _PatientSettingsView extends StatefulWidget {
 
 class _PatientSettingsViewState extends State<_PatientSettingsView> {
   bool _isLoading = true;
-  String _userName = '';
-  String _userEmail = '';
   bool _notificationsEnabled = true;
 
   @override
@@ -78,18 +77,15 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
+      // Only fetch data not available in the global user object
       final userData = await Supabase.instance.client
           .from('users')
-          .select('first_name, last_name, email, notifications_enabled')
+          .select('notifications_enabled')
           .eq('id', currentUserUid)
           .single();
 
       if (mounted) {
         setState(() {
-          _userName =
-              '${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}'
-                  .trim();
-          _userEmail = userData['email'] ?? currentUserEmail;
           _notificationsEnabled = userData['notifications_enabled'] ?? true;
         });
       }
@@ -124,9 +120,10 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
       child: Column(
         children: [
           const SizedBox(height: 16),
+          // Use the efficient global getters
           ProfileCard(
-            name: _userName,
-            email: _userEmail,
+            name: currentUserDisplayName,
+            email: currentUserEmail,
             onTap: () => context.pushNamed(UserProfileWidget.routeName),
           ),
           SettingsGroup(
@@ -191,7 +188,7 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
                 icon: Icons.contact_support_outlined,
                 title: FFLocalizations.of(context).getText('contactus'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _showContactUsDialog(context),
+                onTap: () => showContactUsDialog(context),
               ),
             ],
           ),
@@ -228,7 +225,7 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
                 title: FFLocalizations.of(context).getText('delacct'),
                 iconColor: theme.error,
                 iconBackgroundColor: theme.error.withAlpha(25),
-                onTap: () => _showDeleteAccountDialog(context),
+                onTap: () => showDeleteAccountDialog(context),
               ),
             ],
           ),
@@ -256,7 +253,10 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
   }
 }
 
-// ... The rest of the file (_PartnerSettingsView, etc.) remains unchanged ...
+// =====================================================================
+//                       PARTNER SETTINGS VIEW
+// =====================================================================
+
 class _PartnerSettingsView extends StatefulWidget {
   @override
   State<_PartnerSettingsView> createState() => _PartnerSettingsViewState();
@@ -655,8 +655,6 @@ class _PartnerSettingsViewState extends State<_PartnerSettingsView> {
   }
 }
 
-// ... (The rest of the helper widgets like _WorkingHoursEditor remain the same) ...
-
 class _WorkingHoursEditor extends StatefulWidget {
   final Map<String, List<String>> initialHours;
   final ValueChanged<Map<String, List<String>>> onChanged;
@@ -1018,115 +1016,6 @@ class _EmergencyCard extends StatelessWidget {
             },
             child: const Text('Confirm', style: TextStyle(color: Colors.red)),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-void _showContactUsDialog(BuildContext context) {
-  final theme = FlutterFlowTheme.of(context);
-  final contactInfo = {
-    'Email': 'Maouidi06@gmail.com',
-    'Phone': '+213658846728',
-    'Address':
-        'Wilaya de Tebessa, Tebessa ville, devant la wilaya à côté de stade bestanji',
-  };
-
-  showDialog(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      backgroundColor: theme.secondaryBackground,
-      title: Text(FFLocalizations.of(context).getText('contactus'),
-          style: theme.headlineSmall),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ContactRow(
-            icon: Icons.email_outlined,
-            text: contactInfo['Email']!,
-            onTap: () => launchUrl(Uri.parse('mailto:${contactInfo['Email']}')),
-          ),
-          const SizedBox(height: 12),
-          _ContactRow(
-            icon: Icons.phone_outlined,
-            text: contactInfo['Phone']!,
-            onTap: () => launchUrl(Uri.parse('tel:${contactInfo['Phone']}')),
-          ),
-          const SizedBox(height: 12),
-          _ContactRow(
-            icon: Icons.location_on_outlined,
-            text: contactInfo['Address']!,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: Text('Close', style: TextStyle(color: theme.primaryText)),
-        ),
-      ],
-    ),
-  );
-}
-
-void _showDeleteAccountDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(FFLocalizations.of(context).getText('delacct')),
-      content: const Text(
-          'Are you sure? This action is permanent and cannot be undone.'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: Text(FFLocalizations.of(context).getText('cancel')),
-        ),
-        TextButton(
-          onPressed: () async {
-            try {
-              await Supabase.instance.client.rpc('delete_user_account');
-              if (context.mounted) {
-                await authManager.signOut();
-                context.go(WelcomeScreenWidget.routePath);
-              }
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text('Error deleting account: ${e.toString()}'),
-                      backgroundColor: Colors.red),
-                );
-              }
-            }
-          },
-          child: Text(FFLocalizations.of(context).getText('delacct'),
-              style: const TextStyle(color: Colors.red)),
-        ),
-      ],
-    ),
-  );
-}
-
-class _ContactRow extends StatelessWidget {
-  const _ContactRow({required this.icon, required this.text, this.onTap});
-  final IconData icon;
-  final String text;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: FlutterFlowTheme.of(context).primary, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-              child: SelectableText(text,
-                  style: FlutterFlowTheme.of(context).bodyMedium)),
         ],
       ),
     );

@@ -30,7 +30,6 @@ class MedicalPartnersRow extends SupabaseDataRow {
   set confirmationMode(String value) =>
       setField<String>('confirmation_mode', value);
 
-  // --- CORRECTED: Kept as 'dynamic' for consistency with the app ---
   dynamic get workingHours => getField<dynamic>('working_hours');
   set workingHours(dynamic value) => setField<dynamic>('working_hours', value);
 

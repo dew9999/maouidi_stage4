@@ -163,16 +163,32 @@ T? castToType<T>(dynamic value) {
   if (value == null) {
     return null;
   }
+  if (value is T) {
+    return value;
+  }
   if (T == int) {
-    if (value is num && value.toInt() == value) {
+    if (value is num) {
       return value.toInt() as T;
     }
+    return int.tryParse(value.toString()) as T?;
   }
   if (T == double) {
-    return value.toDouble() as T;
+    if (value is num) {
+      return value.toDouble() as T;
+    }
+    return double.tryParse(value.toString()) as T?;
   }
-  // For other types, direct cast
-  return value as T;
+  if (T == DateTime) {
+    return DateTime.tryParse(value.toString()) as T?;
+  }
+  // For other types, a direct cast is attempted.
+  // Consider adding more specific handlers if needed.
+  try {
+    return value as T;
+  } catch (e) {
+    print('Error casting value of type ${value.runtimeType} to $T: $e');
+    return null;
+  }
 }
 // -----------------------------
 

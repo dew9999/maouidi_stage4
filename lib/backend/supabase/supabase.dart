@@ -1,10 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 export 'database/database.dart';
 
-String _kSupabaseUrl = 'https://jtoeizfokgydtsqdciuu.supabase.co';
+// Now loading from environment variables
+String _kSupabaseUrl = dotenv.env['SUPABASE_URL'] ?? 'YOUR_FALLBACK_URL';
 String _kSupabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0b2VpemZva2d5ZHRzcWRjaXV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NjA3MzMsImV4cCI6MjA2ODQzNjczM30.hVOApuI0RqCQCxaB4t87oSI5QSziK9busTPUpUYSY1A';
+    dotenv.env['SUPABASE_ANON_KEY'] ?? 'YOUR_FALLBACK_KEY';
 
 class SupaFlow {
   SupaFlow._();
