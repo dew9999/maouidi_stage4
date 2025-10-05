@@ -78,7 +78,7 @@ class _LoginWidgetState extends State<LoginWidget>
         backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
         body: SafeArea(
           // --- THIS IS THE FIX ---
-          top: false,
+          top: true,
           // ----------------------
           child: Align(
             alignment: const AlignmentDirectional(0.0, 0.0),

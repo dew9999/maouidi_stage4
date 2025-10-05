@@ -1,7 +1,7 @@
 // lib/flutter_flow/flutter_flow_util.dart
 
 import 'dart:io';
-import 'package:collection/collection.dart'; // <--- CORRECTED IMPORT
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -162,23 +162,23 @@ extension DateTimeComparisonOperators on DateTime {
   bool operator >=(DateTime other) => this > other || isAtSameMomentAs(other);
 }
 
+// --- THIS IS THE CORRECT FIX ---
 T? castToType<T>(dynamic value) {
   if (value == null) {
     return null;
   }
-  switch (T) {
-    case (double):
-      return value.toDouble() as T;
-    case (int):
-      if (value is num && value.toInt() == value) {
-        return value.toInt() as T;
-      }
-      break;
-    default:
-      break;
+  if (T == int) {
+    if (value is num && value.toInt() == value) {
+      return value.toInt() as T;
+    }
   }
+  if (T == double) {
+    return value.toDouble() as T;
+  }
+  // For other types, direct cast
   return value as T;
 }
+// -----------------------------
 
 dynamic getJsonField(
   dynamic response,

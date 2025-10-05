@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../backend/supabase/supabase.dart';
 import '../auth_manager.dart';
 import '../base_auth_user_provider.dart' as base_auth_user_provider;
@@ -34,10 +33,8 @@ class MaouidiSupabaseUser extends base_auth_user_provider.BaseAuthUser {
   Future<void> updatePassword(String newPassword) =>
       SupaFlow.client.auth.updateUser(UserAttributes(password: newPassword));
 
-  // --- ADDED: The missing refreshUser method ---
   @override
   Future<void> refreshUser() => authManager.refreshUser();
-  // ---------------------------------------------
 
   @override
   Future<void> sendEmailVerification() async {

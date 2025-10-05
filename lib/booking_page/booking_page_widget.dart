@@ -9,7 +9,6 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:maouidi/partner_dashboard_page/components/dashboard_helpers.dart';
-import 'booking_page_model.dart';
 export 'booking_page_model.dart';
 
 Future<Map<String, String>?> showHomecareDetailsDialog(

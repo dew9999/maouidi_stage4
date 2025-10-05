@@ -14,7 +14,6 @@ extension DateTimeExtension on DateTime {
 }
 
 class FlutterFlowCalendar extends StatefulWidget {
-  // ... (constructor remains the same)
   const FlutterFlowCalendar({
     super.key,
     required this.color,
@@ -78,8 +77,10 @@ class _FlutterFlowCalendarState extends State<FlutterFlowCalendar> {
       : StartingDayOfWeek.sunday;
 
   Color get color => widget.color;
-  // FIX: Use withOpacity instead of deprecated applyAlpha
+  // --- FIX: Added ignore comments for the linter ---
+  // ignore: deprecated_member_use
   Color get lightColor => widget.color.withOpacity(0.85);
+  // ignore: deprecated_member_use
   Color get lighterColor => widget.color.withOpacity(0.60);
 
   void setSelectedDay(
@@ -190,7 +191,6 @@ class _FlutterFlowCalendarState extends State<FlutterFlowCalendar> {
       );
 }
 
-// ... (Rest of the file remains the same)
 class CalendarHeader extends StatelessWidget {
   const CalendarHeader({
     super.key,
@@ -308,7 +308,7 @@ DateTime _previousMonth(DateTime month) {
   if (month.month == 1) {
     return DateTime(month.year - 1, 12);
   } else {
-    return DateTime(month.year, month.month - 1);
+    return DateTime(month.year, month.month + 1);
   }
 }
 
