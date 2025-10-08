@@ -1,7 +1,6 @@
 // lib/settings_page/settings_page_widget.dart
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../auth/supabase_auth/auth_util.dart';
 import '../../core/constants.dart';
 import '../../backend/supabase/supabase.dart';

@@ -12,10 +12,33 @@ import 'partner_dashboard_page_model.dart';
 import '../../backend/supabase/supabase.dart';
 import 'components/homecare_details_view.dart';
 import 'components/dashboard_helpers.dart';
-// Import the NowServingCard
 import 'components/now_serving_card.dart';
 
 export 'partner_dashboard_page_model.dart';
+
+// --- THIS IS THE FIX ---
+// Helper function to consistently get patient display info
+(String, String) _getPatientDisplayInfo(Map<String, dynamic> appointmentData) {
+  final userData = appointmentData['users'] as Map<String, dynamic>? ?? {};
+
+  final bookingUserName =
+      ('${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}').trim();
+  final bookingUserPhone = userData['phone'] as String?;
+
+  final onBehalfOfName =
+      appointmentData['on_behalf_of_patient_name'] as String?;
+  final onBehalfOfPhone =
+      appointmentData['on_behalf_of_patient_phone'] as String?;
+
+  // Use 'on behalf of' info if available, otherwise use booking user's info, with a final fallback
+  final displayName = onBehalfOfName ??
+      (bookingUserName.isNotEmpty ? bookingUserName : 'A Patient');
+  final displayPhone =
+      onBehalfOfPhone ?? bookingUserPhone ?? 'No phone provided';
+
+  return (displayName, displayPhone);
+}
+// -----------------------
 
 class PartnerDashboardPageWidget extends StatefulWidget {
   const PartnerDashboardPageWidget({
@@ -940,341 +963,6 @@ class _NumberQueueViewState extends State<_NumberQueueView> {
   }
 }
 
-class _AppointmentInfoCard extends StatelessWidget {
-  const _AppointmentInfoCard(
-      {required this.appointmentData, required this.onAction});
-  final Map<String, dynamic> appointmentData;
-  final VoidCallback onAction;
-  @override
-  Widget build(BuildContext context) {
-    final theme = FlutterFlowTheme.of(context);
-    final client = Supabase.instance.client;
-    final status = appointmentData['status'] as String;
-    final appointmentId = appointmentData['id'];
-    final appointmentTime =
-        DateTime.parse(appointmentData['appointment_time']).toLocal();
-    final userData = appointmentData['users'] as Map<String, dynamic>? ?? {};
-    final bookingUserName =
-        ('${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}')
-            .trim();
-    final bookingUserPhone = userData['phone'] as String? ?? 'No phone';
-    final onBehalfOfName =
-        appointmentData['on_behalf_of_patient_name'] as String?;
-    final onBehalfOfPhone =
-        appointmentData['on_behalf_of_patient_phone'] as String?;
-    final displayName = onBehalfOfName ??
-        (bookingUserName.isNotEmpty ? bookingUserName : 'Booked Patient');
-    final displayPhone = onBehalfOfPhone ?? bookingUserPhone;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.secondaryBackground,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-              blurRadius: 3,
-              color: theme.primaryBackground,
-              offset: const Offset(0, 1))
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(displayName, style: theme.titleLarge),
-                    const SizedBox(height: 4),
-                    Text(displayPhone,
-                        style: theme.bodyMedium
-                            .copyWith(color: theme.secondaryText)),
-                    const SizedBox(height: 8),
-                    Text(DateFormat('h:mm a').format(appointmentTime),
-                        style: theme.bodyLarge
-                            .copyWith(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-              if (status == 'Pending' || status == 'Confirmed')
-                PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'cancel') {
-                      final confirmed = await showStyledConfirmationDialog(
-                        context: context,
-                        title: FFLocalizations.of(context).getText('cnclaptq'),
-                        content:
-                            'Are you sure you want to cancel this appointment?',
-                        confirmText: 'Confirm',
-                      );
-                      if (confirmed == true && context.mounted) {
-                        try {
-                          await client
-                              .from('appointments')
-                              .update({'status': 'Cancelled_ByPartner'}).eq(
-                                  'id', appointmentId);
-                          onAction();
-                        } catch (e) {
-                          if (context.mounted) {
-                            showErrorSnackbar(
-                                context, 'Action failed: ${e.toString()}');
-                          }
-                        }
-                      }
-                    } else if (value == 'no-show') {
-                      try {
-                        await client.from('appointments').update(
-                            {'status': 'NoShow'}).eq('id', appointmentId);
-                        onAction();
-                      } catch (e) {
-                        if (context.mounted) {
-                          showErrorSnackbar(
-                              context, 'Action failed: ${e.toString()}');
-                        }
-                      }
-                    }
-                  },
-                  itemBuilder: (BuildContext context) =>
-                      <PopupMenuEntry<String>>[
-                    if (status == 'Confirmed')
-                      const PopupMenuItem<String>(
-                        value: 'no-show',
-                        child: Text('Mark as No-Show'),
-                      ),
-                    const PopupMenuItem<String>(
-                      value: 'cancel',
-                      child: Text('Cancel Appointment'),
-                    ),
-                  ],
-                )
-            ],
-          ),
-          HomecareDetailsView(appointmentData: appointmentData),
-          if (status == 'Pending')
-            Padding(
-              padding: const EdgeInsets.only(top: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  FFButtonWidget(
-                    onPressed: () async {
-                      try {
-                        await client
-                            .from('appointments')
-                            .update({'status': 'Cancelled_ByPartner'}).eq(
-                                'id', appointmentId);
-                        onAction();
-                      } catch (e) {
-                        if (context.mounted) {
-                          showErrorSnackbar(
-                              context, 'Failed to decline: ${e.toString()}');
-                        }
-                      }
-                    },
-                    text: 'Decline',
-                    options: FFButtonOptions(
-                        height: 40,
-                        color: theme.secondaryBackground,
-                        textStyle:
-                            theme.bodyMedium.copyWith(color: theme.error),
-                        elevation: 1,
-                        borderSide: BorderSide(color: theme.alternate)),
-                  ),
-                  const SizedBox(width: 8),
-                  FFButtonWidget(
-                    onPressed: () async {
-                      try {
-                        await client.from('appointments').update(
-                            {'status': 'Confirmed'}).eq('id', appointmentId);
-                        onAction();
-                      } catch (e) {
-                        if (context.mounted) {
-                          showErrorSnackbar(
-                              context, 'Failed to confirm: ${e.toString()}');
-                        }
-                      }
-                    },
-                    text: 'Confirm',
-                    options: FFButtonOptions(
-                      height: 40,
-                      color: theme.success,
-                      textStyle: theme.bodyMedium.copyWith(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (status == 'Confirmed')
-            Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: FFButtonWidget(
-                  onPressed: () async {
-                    try {
-                      await client.from('appointments').update({
-                        'status': 'Completed',
-                        'completed_at':
-                            DateTime.now().toUtc().toIso8601String(),
-                      }).eq('id', appointmentId);
-                      onAction();
-                    } catch (e) {
-                      if (context.mounted) {
-                        showErrorSnackbar(
-                            context, 'Action failed: ${e.toString()}');
-                      }
-                    }
-                  },
-                  text: FFLocalizations.of(context).getText('markcomp'),
-                  icon: const Icon(Icons.check_circle_outline),
-                  options: FFButtonOptions(
-                      width: double.infinity,
-                      height: 44,
-                      color: theme.primary,
-                      textStyle:
-                          theme.titleSmall.copyWith(color: Colors.white)),
-                )),
-        ],
-      ),
-    );
-  }
-}
-
-class _UpNextQueueCard extends StatelessWidget {
-  const _UpNextQueueCard({
-    required this.appointmentData,
-    required this.partnerId,
-    required this.onAction,
-  });
-  final Map<String, dynamic> appointmentData;
-  final String partnerId;
-  final VoidCallback onAction;
-  @override
-  Widget build(BuildContext context) {
-    final theme = FlutterFlowTheme.of(context);
-    final client = Supabase.instance.client;
-    final appointmentId = appointmentData['id'];
-    final userData = appointmentData['users'] as Map<String, dynamic>? ?? {};
-    final bookingUserName =
-        ('${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}')
-            .trim();
-    final onBehalfOfName =
-        appointmentData['on_behalf_of_patient_name'] as String?;
-    final displayName = onBehalfOfName ??
-        (bookingUserName.isNotEmpty ? bookingUserName : 'A Patient');
-    final appointmentNumber = appointmentData['appointment_number'];
-    return Card(
-      elevation: 1,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: theme.accent1.withAlpha(25),
-                  child: Text(
-                    '$appointmentNumber',
-                    style: theme.titleMedium.copyWith(color: theme.primary),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(displayName, style: theme.titleMedium),
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'cancel') {
-                      final confirmed = await showStyledConfirmationDialog(
-                        context: context,
-                        title: FFLocalizations.of(context).getText('cnclaptq'),
-                        content:
-                            'Are you sure you want to cancel this request?',
-                        confirmText: 'Confirm',
-                      );
-                      if (confirmed == true && context.mounted) {
-                        try {
-                          await client
-                              .from('appointments')
-                              .update({'status': 'Cancelled_ByPartner'}).eq(
-                                  'id', appointmentId);
-                          onAction();
-                        } catch (e) {
-                          if (context.mounted) {
-                            showErrorSnackbar(
-                                context, 'Action failed: ${e.toString()}');
-                          }
-                        }
-                      }
-                    } else if (value == 'reschedule') {
-                      try {
-                        await client.rpc(
-                            'reschedule_appointment_to_end_of_queue',
-                            params: {
-                              'appointment_id_arg': appointmentId,
-                              'partner_id_arg': partnerId
-                            });
-                        onAction();
-                      } catch (e) {
-                        if (context.mounted) {
-                          showErrorSnackbar(
-                              context, 'Failed to reschedule: ${e.toString()}');
-                        }
-                      }
-                    }
-                  },
-                  itemBuilder: (BuildContext context) =>
-                      <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: 'reschedule',
-                      child: Text('Move to End of Queue'),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'cancel',
-                      child: Text('Cancel Appointment'),
-                    ),
-                  ],
-                )
-              ],
-            ),
-            HomecareDetailsView(appointmentData: appointmentData),
-            const SizedBox(height: 8),
-            FFButtonWidget(
-              onPressed: () async {
-                try {
-                  await client
-                      .from('appointments')
-                      .update({'status': 'Confirmed'}).eq('id', appointmentId);
-                  onAction();
-                } catch (e) {
-                  if (context.mounted) {
-                    showErrorSnackbar(
-                        context, 'Action failed: ${e.toString()}');
-                  }
-                }
-              },
-              text: 'Call Next',
-              icon: const Icon(Icons.campaign_outlined),
-              options: FFButtonOptions(
-                width: double.infinity,
-                height: 40,
-                color: theme.primary.withAlpha(25),
-                textStyle: theme.titleSmall.copyWith(color: theme.primary),
-                elevation: 0,
-                borderSide: BorderSide(color: theme.primary, width: 1),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _AnalyticsView extends StatefulWidget {
   const _AnalyticsView({required this.partnerId});
   final String partnerId;
@@ -1520,4 +1208,322 @@ class _AnalyticsData {
   final Map<String, int> summaryStats;
   final List<Map<String, dynamic>> weeklyStats;
   _AnalyticsData({required this.summaryStats, required this.weeklyStats});
+}
+
+class _AppointmentInfoCard extends StatelessWidget {
+  const _AppointmentInfoCard(
+      {required this.appointmentData, required this.onAction});
+  final Map<String, dynamic> appointmentData;
+  final VoidCallback onAction;
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final client = Supabase.instance.client;
+    final status = appointmentData['status'] as String;
+    final appointmentId = appointmentData['id'];
+    final appointmentTime =
+        DateTime.parse(appointmentData['appointment_time']).toLocal();
+    final (displayName, displayPhone) = _getPatientDisplayInfo(appointmentData);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.secondaryBackground,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+              blurRadius: 3,
+              color: theme.primaryBackground,
+              offset: const Offset(0, 1))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(displayName, style: theme.titleLarge),
+                    const SizedBox(height: 4),
+                    Text(displayPhone,
+                        style: theme.bodyMedium
+                            .copyWith(color: theme.secondaryText)),
+                    const SizedBox(height: 8),
+                    Text(DateFormat('h:mm a').format(appointmentTime),
+                        style: theme.bodyLarge
+                            .copyWith(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              if (status == 'Pending' || status == 'Confirmed')
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'cancel') {
+                      final confirmed = await showStyledConfirmationDialog(
+                        context: context,
+                        title: FFLocalizations.of(context).getText('cnclaptq'),
+                        content:
+                            'Are you sure you want to cancel this appointment?',
+                        confirmText: 'Confirm',
+                      );
+                      if (confirmed == true && context.mounted) {
+                        try {
+                          await client
+                              .from('appointments')
+                              .update({'status': 'Cancelled_ByPartner'}).eq(
+                                  'id', appointmentId);
+                          onAction();
+                        } catch (e) {
+                          if (context.mounted) {
+                            showErrorSnackbar(
+                                context, 'Action failed: ${e.toString()}');
+                          }
+                        }
+                      }
+                    } else if (value == 'no-show') {
+                      try {
+                        await client.from('appointments').update(
+                            {'status': 'NoShow'}).eq('id', appointmentId);
+                        onAction();
+                      } catch (e) {
+                        if (context.mounted) {
+                          showErrorSnackbar(
+                              context, 'Action failed: ${e.toString()}');
+                        }
+                      }
+                    }
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                    if (status == 'Confirmed')
+                      const PopupMenuItem<String>(
+                        value: 'no-show',
+                        child: Text('Mark as No-Show'),
+                      ),
+                    const PopupMenuItem<String>(
+                      value: 'cancel',
+                      child: Text('Cancel Appointment'),
+                    ),
+                  ],
+                )
+            ],
+          ),
+          HomecareDetailsView(appointmentData: appointmentData),
+          if (status == 'Pending')
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  FFButtonWidget(
+                    onPressed: () async {
+                      try {
+                        await client
+                            .from('appointments')
+                            .update({'status': 'Cancelled_ByPartner'}).eq(
+                                'id', appointmentId);
+                        onAction();
+                      } catch (e) {
+                        if (context.mounted) {
+                          showErrorSnackbar(
+                              context, 'Failed to decline: ${e.toString()}');
+                        }
+                      }
+                    },
+                    text: 'Decline',
+                    options: FFButtonOptions(
+                        height: 40,
+                        color: theme.secondaryBackground,
+                        textStyle:
+                            theme.bodyMedium.copyWith(color: theme.error),
+                        elevation: 1,
+                        borderSide: BorderSide(color: theme.alternate)),
+                  ),
+                  const SizedBox(width: 8),
+                  FFButtonWidget(
+                    onPressed: () async {
+                      try {
+                        await client.from('appointments').update(
+                            {'status': 'Confirmed'}).eq('id', appointmentId);
+                        onAction();
+                      } catch (e) {
+                        if (context.mounted) {
+                          showErrorSnackbar(
+                              context, 'Failed to confirm: ${e.toString()}');
+                        }
+                      }
+                    },
+                    text: 'Confirm',
+                    options: FFButtonOptions(
+                      height: 40,
+                      color: theme.success,
+                      textStyle: theme.bodyMedium.copyWith(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (status == 'Confirmed')
+            Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: FFButtonWidget(
+                  onPressed: () async {
+                    try {
+                      await client.from('appointments').update({
+                        'status': 'Completed',
+                        'completed_at':
+                            DateTime.now().toUtc().toIso8601String(),
+                      }).eq('id', appointmentId);
+                      onAction();
+                    } catch (e) {
+                      if (context.mounted) {
+                        showErrorSnackbar(
+                            context, 'Action failed: ${e.toString()}');
+                      }
+                    }
+                  },
+                  text: FFLocalizations.of(context).getText('markcomp'),
+                  icon: const Icon(Icons.check_circle_outline),
+                  options: FFButtonOptions(
+                      width: double.infinity,
+                      height: 44,
+                      color: theme.primary,
+                      textStyle:
+                          theme.titleSmall.copyWith(color: Colors.white)),
+                )),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpNextQueueCard extends StatelessWidget {
+  const _UpNextQueueCard({
+    required this.appointmentData,
+    required this.partnerId,
+    required this.onAction,
+  });
+  final Map<String, dynamic> appointmentData;
+  final String partnerId;
+  final VoidCallback onAction;
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final client = Supabase.instance.client;
+    final appointmentId = appointmentData['id'];
+    final (displayName, _) = _getPatientDisplayInfo(appointmentData);
+    final appointmentNumber = appointmentData['appointment_number'];
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: theme.accent1.withAlpha(25),
+                  child: Text(
+                    '$appointmentNumber',
+                    style: theme.titleMedium.copyWith(color: theme.primary),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(displayName, style: theme.titleMedium),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'cancel') {
+                      final confirmed = await showStyledConfirmationDialog(
+                        context: context,
+                        title: FFLocalizations.of(context).getText('cnclaptq'),
+                        content:
+                            'Are you sure you want to cancel this request?',
+                        confirmText: 'Confirm',
+                      );
+                      if (confirmed == true && context.mounted) {
+                        try {
+                          await client
+                              .from('appointments')
+                              .update({'status': 'Cancelled_ByPartner'}).eq(
+                                  'id', appointmentId);
+                          onAction();
+                        } catch (e) {
+                          if (context.mounted) {
+                            showErrorSnackbar(
+                                context, 'Action failed: ${e.toString()}');
+                          }
+                        }
+                      }
+                    } else if (value == 'reschedule') {
+                      try {
+                        await client.rpc(
+                            'reschedule_appointment_to_end_of_queue',
+                            params: {
+                              'appointment_id_arg': appointmentId,
+                              'partner_id_arg': partnerId
+                            });
+                        onAction();
+                      } catch (e) {
+                        if (context.mounted) {
+                          showErrorSnackbar(
+                              context, 'Failed to reschedule: ${e.toString()}');
+                        }
+                      }
+                    }
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'reschedule',
+                      child: Text('Move to End of Queue'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'cancel',
+                      child: Text('Cancel Appointment'),
+                    ),
+                  ],
+                )
+              ],
+            ),
+            HomecareDetailsView(appointmentData: appointmentData),
+            const SizedBox(height: 8),
+            FFButtonWidget(
+              onPressed: () async {
+                try {
+                  await client
+                      .from('appointments')
+                      .update({'status': 'Confirmed'}).eq('id', appointmentId);
+                  onAction();
+                } catch (e) {
+                  if (context.mounted) {
+                    showErrorSnackbar(
+                        context, 'Action failed: ${e.toString()}');
+                  }
+                }
+              },
+              text: 'Call Next',
+              icon: const Icon(Icons.campaign_outlined),
+              options: FFButtonOptions(
+                width: double.infinity,
+                height: 40,
+                color: theme.primary.withAlpha(25),
+                textStyle: theme.titleSmall.copyWith(color: theme.primary),
+                elevation: 0,
+                borderSide: BorderSide(color: theme.primary, width: 1),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
 }
