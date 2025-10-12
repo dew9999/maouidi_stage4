@@ -85,6 +85,9 @@ class _MyAppState extends State<MyApp> {
         }
       });
 
+    // MODIFICATION: Load the saved locale when the app starts
+    _locale = FFLocalizations.getStoredLocale();
+
     Future.delayed(
       const Duration(milliseconds: 1000),
       () => _appStateNotifier.stopShowingSplashImage(),
@@ -106,6 +109,8 @@ class _MyAppState extends State<MyApp> {
 
   void setLocale(String language) {
     setState(() => _locale = createLocale(language));
+    FFLocalizations.storeLocale(
+        language); // MODIFICATION: Save locale preference
   }
 
   void setThemeMode(ThemeMode mode) => setState(() {
@@ -125,6 +130,21 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       locale: _locale,
+      // MODIFICATION: Added localeResolutionCallback for better device language detection
+      localeResolutionCallback: (locale, supportedLocales) {
+        // If the user has already picked a language, use that
+        if (_locale != null) {
+          return _locale;
+        }
+        // Otherwise, check if the device language is supported
+        for (var supportedLocale in supportedLocales) {
+          if (supportedLocale.languageCode == locale?.languageCode) {
+            return supportedLocale;
+          }
+        }
+        // If the device language is not supported, fall back to English
+        return supportedLocales.first;
+      },
       supportedLocales: const [Locale('en'), Locale('ar'), Locale('fr')],
       theme: ThemeData(brightness: Brightness.light, useMaterial3: false),
       darkTheme: ThemeData(brightness: Brightness.dark, useMaterial3: false),

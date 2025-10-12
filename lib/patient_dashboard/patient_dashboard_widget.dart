@@ -1,5 +1,6 @@
 // lib/patient_dashboard/patient_dashboard_widget.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../components/empty_state_widget.dart';
@@ -25,11 +26,136 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
   late TabController _tabController;
   final ValueNotifier<int> _refreshNotifier = ValueNotifier<int>(0);
 
+  RealtimeChannel? _appointmentsChannel;
+
+  void _showPaymentDialog(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+            FFLocalizations.of(context).getText('payment_required_title'),
+            style: theme.headlineSmall),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: theme.warning, width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: theme.warning, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        FFLocalizations.of(context)
+                            .getText('payment_emergency_warning'),
+                        style:
+                            theme.bodySmall.copyWith(color: theme.primaryText),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                FFLocalizations.of(context).getText('payment_required_body'),
+                style: theme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              Text(FFLocalizations.of(context).getText('payment_rib'),
+                  style: theme.bodyLarge),
+              Text(FFLocalizations.of(context).getText('payment_name'),
+                  style: theme.bodyLarge),
+              const SizedBox(height: 16),
+              Text(
+                FFLocalizations.of(context)
+                    .getText('payment_receipt_instruction'),
+                style: theme.bodyMedium,
+              ),
+              SelectableText(
+                FFLocalizations.of(context).getText('payment_email'),
+                style: theme.bodyLarge.copyWith(color: theme.primary),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(FFLocalizations.of(context).getText('dialog_close'),
+                style: TextStyle(color: theme.primaryText)),
+          ),
+        ],
+        backgroundColor: theme.secondaryBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => PatientDashboardModel());
     _tabController = TabController(length: 3, vsync: this, initialIndex: 0);
+    _setupRealtimeListener();
+  }
+
+  // MODIFICATION: This is the final, correct syntax.
+  void _setupRealtimeListener() {
+    final client = Supabase.instance.client;
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _appointmentsChannel =
+        client.channel('public:appointments:booking_user_id=eq.$userId').on(
+      RealtimeListenTypes.postgresChanges,
+      ChannelFilter(
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'appointments',
+        filter: 'booking_user_id=eq.$userId',
+      ),
+      (payload, [ref]) {
+        final oldRecord = payload['old'] as Map<String, dynamic>?;
+        final newRecord = payload['new'] as Map<String, dynamic>?;
+
+        if (oldRecord != null &&
+            newRecord != null &&
+            oldRecord['status'] == 'Pending' &&
+            newRecord['status'] == 'Confirmed') {
+          _checkIfHomecareAndShowDialog(newRecord['partner_id']);
+
+          if (mounted) {
+            _refreshNotifier.value++;
+          }
+        }
+      },
+    );
+    _appointmentsChannel!.subscribe();
+  }
+
+  Future<void> _checkIfHomecareAndShowDialog(String partnerId) async {
+    try {
+      final partnerData = await Supabase.instance.client
+          .from('medical_partners')
+          .select('category')
+          .eq('id', partnerId)
+          .single();
+
+      if (mounted && partnerData['category'] == 'Homecare') {
+        _showPaymentDialog(context);
+      }
+    } catch (e) {
+      debugPrint("Error checking partner category: $e");
+    }
   }
 
   @override
@@ -37,6 +163,9 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
     _tabController.dispose();
     _refreshNotifier.dispose();
     _model.dispose();
+    if (_appointmentsChannel != null) {
+      Supabase.instance.client.removeChannel(_appointmentsChannel!);
+    }
     super.dispose();
   }
 
@@ -49,26 +178,23 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
     var query = client
         .from('appointments')
         .select(
-            '*, appointment_number, has_review, completed_at, medical_partners(full_name, specialty)')
+            '*, appointment_number, has_review, completed_at, medical_partners(full_name, specialty, category)')
         .eq('booking_user_id', userId)
-        .inFilter('status', statuses); // <-- This is the efficient filter
+        .inFilter('status', statuses);
 
     if (isUpcoming != null) {
       final now = DateTime.now();
-      // Use the beginning of today for a consistent "upcoming" filter
       final startOfToday = DateTime(now.year, now.month, now.day);
+      // MODIFICATION: Corrected typo to toIso8601String
       final filterTime = startOfToday.toUtc().toIso8601String();
 
       if (isUpcoming) {
-        // For upcoming, get appointments from the start of today onwards
         query = query.gte('appointment_time', filterTime);
       } else {
-        // For completed/past, get appointments before right now
         query = query.lt('appointment_time', now.toUtc().toIso8601String());
       }
     }
 
-    // Sort by time: ascending for upcoming, descending for past appointments
     return query
         .order('appointment_time', ascending: isUpcoming ?? false)
         .then((data) => List<Map<String, dynamic>>.from(data));

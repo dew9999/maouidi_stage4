@@ -740,4 +740,112 @@ final kTranslationsMap = <Map<String, Map<String, String>>>[
       'fr': 'Erreur lors de l\'enregistrement du profil :'
     },
   },
+  {
+    'i_agree_to': {
+      'en': 'I agree to the ',
+      'ar': 'أوافق على ',
+      'fr': 'J\'accepte la '
+    },
+    'and': {'en': ' and ', 'ar': ' و ', 'fr': ' et les '},
+    'dialog_close': {'en': 'Close', 'ar': 'إغلاق', 'fr': 'Fermer'},
+    'privacy_policy_content': {
+      'en': '''Last updated: September 13, 2025
+
+Please replace this placeholder text with your own Privacy Policy.
+
+1. Introduction
+   Welcome to Maouidi. We are committed to protecting your personal information and your right to privacy...
+
+2. Information We Collect
+   We may collect personal information that you voluntarily provide to us when you register on the application...
+
+3. How We Use Your Information
+   We use personal information collected via our application for a variety of business purposes described below...
+
+...''',
+      'ar': '''آخر تحديث: 13 سبتمبر 2025
+
+يرجى استبدال هذا النص بسياسة الخصوصية الخاصة بك.
+
+1. مقدمة
+   مرحبًا بك في موعدي. نحن ملتزمون بحماية معلوماتك الشخصية وحقك في الخصوصية...
+
+2. المعلومات التي نجمعها
+   قد نقوم بجمع معلومات شخصية تقدمها لنا طواعية عند التسجيل في التطبيق...
+
+3. كيف نستخدم معلوماتك
+   نستخدم المعلومات الشخصية التي تم جمعها عبر تطبيقنا لمجموعة متنوعة من أغراض العمل الموضحة أدناه...
+
+...''',
+      'fr': '''Dernière mise à jour : 13 septembre 2025
+
+Veuillez remplacer ce texte par votre propre politique de confidentialité.
+
+1. Introduction
+   Bienvenue sur Maouidi. Nous nous engageons à protéger vos informations personnelles et votre droit à la vie privée...
+
+2. Informations que nous collectons
+   Nous pouvons collecter des informations personnelles que vous nous fournissez volontairement lorsque vous vous inscrivez sur l'application...
+
+3. Comment nous utilisons vos informations
+   Nous utilisons les informations personnelles collectées via notre application à diverses fins commerciales décrites ci-dessous...
+
+...''',
+    },
+    'terms_of_service_content': {
+      'en': '''Last updated: September 13, 2025
+
+Please replace this placeholder text with your own Terms of Service.
+
+1. Agreement to Terms
+   By using our application, you agree to be bound by these Terms of Service...
+
+2. User Accounts
+   When you create an account with us, you must provide us with information that is accurate, complete, and current at all times...
+
+3. Prohibited Uses
+   You may use the application only for lawful purposes and in accordance with the Terms...
+
+...''',
+      'ar': '''آخر تحديث: 13 سبتمبر 2025
+
+يرجى استبدال هذا النص بشروط الخدمة الخاصة بك.
+
+1. الموافقة على الشروط
+   باستخدام تطبيقنا، فإنك توافق على الالتزام بشروط الخدمة هذه...
+
+2. حسابات المستخدمين
+   عند إنشاء حساب معنا، يجب عليك تزويدنا بمعلومات دقيقة وكاملة وحديثة في جميع الأوقات...
+
+3. الاستخدامات المحظورة
+   يجوز لك استخدام التطبيق فقط للأغراض المشروعة ووفقًا للشروط...
+
+...''',
+      'fr': '''Dernière mise à jour : 13 septembre 2025
+
+Veuillez remplacer ce texte par vos propres conditions d'utilisation.
+
+1. Acceptation des conditions
+   En utilisant notre application, vous acceptez d'être lié par ces conditions d'utilisation...
+
+2. Comptes d'utilisateurs
+   Lorsque vous créez un compte chez nous, vous devez nous fournir des informations exactes, complètes et à jour en tout temps...
+
+3. Utilisations interdites
+   Vous ne pouvez utiliser l'application qu'à des fins légales et conformément aux conditions...
+
+...''',
+    },
+  },
+  {
+    'payment_emergency_warning': {
+      'en':
+          'Note: This service is not for emergencies. If your case is critical, please contact the nearest emergency service to your location.',
+      'ar':
+          'ملاحظة: هذه الخدمة ليست للحالات الطارئة. إذا كانت حالتك حرجة، يرجى الاتصال بأقرب خدمة طوارئ لموقعك.',
+      'fr':
+          'Remarque : Ce service n\'est pas destiné aux urgences. Si votre cas est critique, veuillez contacter le service d\'urgence le plus proche.'
+    }
+  },
+// Make sure this reduce function is at the end
 ].reduce((a, b) => a..addAll(b));

@@ -1,5 +1,6 @@
 // lib/ui/create/create_widget.dart
 
+import 'package:flutter/gestures.dart';
 import '../../auth/supabase_auth/auth_util.dart';
 import '../../flutter_flow/flutter_flow_animations.dart';
 import '../../flutter_flow/flutter_flow_icon_button.dart';
@@ -31,6 +32,7 @@ class _CreateWidgetState extends State<CreateWidget>
   late StreamSubscription<bool> _keyboardVisibilitySubscription;
   bool _isKeyboardVisible = false;
   final _formKey = GlobalKey<FormState>();
+  bool _agreedToTerms = false;
 
   final animationsMap = <String, AnimationInfo>{};
 
@@ -89,6 +91,133 @@ class _CreateWidgetState extends State<CreateWidget>
       _keyboardVisibilitySubscription.cancel();
     }
     super.dispose();
+  }
+
+  Future<void> _showInfoDialog(
+      BuildContext context, String title, Widget content) {
+    final theme = FlutterFlowTheme.of(context);
+    return showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            decoration: BoxDecoration(
+              color: theme.secondaryBackground,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 16, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(title, style: theme.headlineSmall),
+                      FlutterFlowIconButton(
+                        icon: Icon(Icons.close_rounded,
+                            color: theme.secondaryText, size: 24),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        borderRadius: 30,
+                        buttonSize: 48,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Scrollable Content
+                Expanded(
+                  child: content,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // MODIFICATION: Now uses translations
+  Widget _getPrivacyPolicyContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Text(
+        FFLocalizations.of(context).getText('privacy_policy_content'),
+      ),
+    );
+  }
+
+  // MODIFICATION: Now uses translations
+  Widget _getTermsOfServiceContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Text(
+        FFLocalizations.of(context).getText('terms_of_service_content'),
+      ),
+    );
+  }
+
+  // MODIFICATION: Now uses translations
+  Widget _buildTermsAndPrivacyRow() {
+    final theme = FlutterFlowTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12.0, left: 4.0),
+      child: Row(
+        children: [
+          Checkbox(
+            value: _agreedToTerms,
+            onChanged: (newValue) {
+              setState(() {
+                _agreedToTerms = newValue!;
+              });
+            },
+            activeColor: theme.primary,
+          ),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: theme.bodySmall,
+                children: [
+                  TextSpan(
+                    text: FFLocalizations.of(context).getText('i_agree_to'),
+                    style: TextStyle(color: theme.secondaryText),
+                  ),
+                  TextSpan(
+                    text: FFLocalizations.of(context).getText('privpolicy'),
+                    style: TextStyle(
+                        color: theme.primary,
+                        decoration: TextDecoration.underline),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => _showInfoDialog(
+                          context,
+                          FFLocalizations.of(context).getText('privpolicy'),
+                          _getPrivacyPolicyContent()),
+                  ),
+                  TextSpan(
+                    text: FFLocalizations.of(context).getText('and'),
+                    style: TextStyle(color: theme.secondaryText),
+                  ),
+                  TextSpan(
+                    text: FFLocalizations.of(context).getText('termsserv'),
+                    style: TextStyle(
+                        color: theme.primary,
+                        decoration: TextDecoration.underline),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => _showInfoDialog(
+                          context,
+                          FFLocalizations.of(context).getText('termsserv'),
+                          _getTermsOfServiceContent()),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -351,6 +480,7 @@ class _CreateWidgetState extends State<CreateWidget>
                                   },
                                 ),
                               ),
+                              _buildTermsAndPrivacyRow(),
                             ],
                           ).animateOnPageLoad(
                               animationsMap['columnOnPageLoadAnimation']!),
@@ -365,55 +495,62 @@ class _CreateWidgetState extends State<CreateWidget>
                       padding:
                           const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 24.0),
                       child: FFButtonWidget(
-                        onPressed: () async {
-                          if (!(_formKey.currentState?.validate() ?? false)) {
-                            return;
-                          }
-                          try {
-                            final user =
-                                await authManager.createAccountWithEmail(
-                              context,
-                              _model.emailAddressTextController!.text,
-                              _model.passwordTextController!.text,
-                              firstName: _model.firstNameTextController!.text,
-                              lastName: _model.lastNameTextController!.text,
-                            );
+                        onPressed: !_agreedToTerms
+                            ? null
+                            : () async {
+                                if (!(_formKey.currentState?.validate() ??
+                                    false)) {
+                                  return;
+                                }
+                                try {
+                                  final user =
+                                      await authManager.createAccountWithEmail(
+                                    context,
+                                    _model.emailAddressTextController!.text,
+                                    _model.passwordTextController!.text,
+                                    firstName:
+                                        _model.firstNameTextController!.text,
+                                    lastName:
+                                        _model.lastNameTextController!.text,
+                                  );
 
-                            if (user == null) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Could not create account. Please try again.'),
-                                    backgroundColor:
-                                        FlutterFlowTheme.of(context).error,
-                                  ),
-                                );
-                              }
-                              return;
-                            }
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Account created! Please check your email to verify your account.'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                              context.safePop();
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(e.toString()),
-                                  backgroundColor:
-                                      FlutterFlowTheme.of(context).error,
-                                ),
-                              );
-                            }
-                          }
-                        },
+                                  if (user == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Could not create account. Please try again.'),
+                                          backgroundColor:
+                                              FlutterFlowTheme.of(context)
+                                                  .error,
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Account created! Please check your email to verify your account.'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    context.safePop();
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(e.toString()),
+                                        backgroundColor:
+                                            FlutterFlowTheme.of(context).error,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
                         text: FFLocalizations.of(context).getText(
                           'hr7g0yzr' /* Create Account */,
                         ),
@@ -429,6 +566,7 @@ class _CreateWidgetState extends State<CreateWidget>
                                   ),
                           elevation: 4.0,
                           borderRadius: BorderRadius.circular(12.0),
+                          disabledColor: FlutterFlowTheme.of(context).alternate,
                         ),
                       ),
                     ),
