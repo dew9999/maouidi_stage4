@@ -152,13 +152,10 @@ class SupabaseAuthManager implements AuthManager {
         'last_name': lastName,
       },
     );
-    if (authResponse.user?.lastSignInAt == null) {
-      return null;
-    }
     if (authResponse.user != null) {
-      base_auth_user_provider.currentUser =
-          MaouidiSupabaseUser(authResponse.user!);
-      return base_auth_user_provider.currentUser;
+      // The user is created but not logged in. We return the user object
+      // to indicate success, but don't set the global currentUser.
+      return MaouidiSupabaseUser(authResponse.user!);
     }
     return null;
   }

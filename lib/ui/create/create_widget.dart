@@ -380,10 +380,27 @@ class _CreateWidgetState extends State<CreateWidget>
                             );
 
                             if (user == null) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Could not create account. Please try again.'),
+                                    backgroundColor:
+                                        FlutterFlowTheme.of(context).error,
+                                  ),
+                                );
+                              }
                               return;
                             }
                             if (context.mounted) {
-                              context.goNamed('HomePage');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Account created! Please check your email to verify your account.'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              context.safePop();
                             }
                           } catch (e) {
                             if (context.mounted) {
