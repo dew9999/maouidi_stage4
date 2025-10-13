@@ -16,29 +16,27 @@ import 'components/now_serving_card.dart';
 
 export 'partner_dashboard_page_model.dart';
 
-// --- THIS IS THE FIX ---
 // Helper function to consistently get patient display info
 (String, String) _getPatientDisplayInfo(Map<String, dynamic> appointmentData) {
-  final userData = appointmentData['users'] as Map<String, dynamic>? ?? {};
-
-  final bookingUserName =
-      ('${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}').trim();
-  final bookingUserPhone = userData['phone'] as String?;
-
   final onBehalfOfName =
       appointmentData['on_behalf_of_patient_name'] as String?;
   final onBehalfOfPhone =
       appointmentData['on_behalf_of_patient_phone'] as String?;
 
-  // Use 'on behalf of' info if available, otherwise use booking user's info, with a final fallback
+  final patientFirstName = appointmentData['patient_first_name'] as String?;
+  final patientLastName = appointmentData['patient_last_name'] as String?;
+  final patientPhone = appointmentData['patient_phone'] as String?;
+
+  final bookingUserName =
+      ('${patientFirstName ?? ''} ${patientLastName ?? ''}').trim();
+
+  // Use 'on behalf of' info first for manually added patients.
   final displayName = onBehalfOfName ??
       (bookingUserName.isNotEmpty ? bookingUserName : 'A Patient');
-  final displayPhone =
-      onBehalfOfPhone ?? bookingUserPhone ?? 'No phone provided';
+  final displayPhone = onBehalfOfPhone ?? patientPhone ?? 'No phone provided';
 
   return (displayName, displayPhone);
 }
-// -----------------------
 
 class PartnerDashboardPageWidget extends StatefulWidget {
   const PartnerDashboardPageWidget({
@@ -145,6 +143,23 @@ class _StandardPartnerDashboardViewState
   void dispose() {
     _model.dispose();
     super.dispose();
+  }
+
+  // New single data fetching function using RPC
+  Future<List<Map<String, dynamic>>> _fetchAllAppointmentsForPartner() async {
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'get_partner_dashboard_appointments',
+        params: {'partner_id_arg': widget.partnerId},
+      );
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      debugPrint('Error fetching partner appointments via RPC: $e');
+      if (mounted) {
+        showErrorSnackbar(context, 'Could not load appointment data.');
+      }
+      return [];
+    }
   }
 
   void _showBookForPatientDialog_QueueBased(BuildContext context) {
@@ -280,52 +295,65 @@ class _StandardPartnerDashboardViewState
                       'partnerId': widget.partnerId,
                       'isPartnerBooking': 'true',
                     },
-                  );
+                  ).then((_) =>
+                      setState(() => _refreshCounter++)); // Refresh on return
                 }
               },
               backgroundColor: theme.primary,
               elevation: 8,
               child: const Icon(Icons.add, color: Colors.white, size: 28),
             ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: SegmentedButton<DashboardView>(
-              segments: [
-                ButtonSegment(
-                    value: DashboardView.schedule,
-                    label:
-                        Text(FFLocalizations.of(context).getText('schedule')),
-                    icon: const Icon(Icons.calendar_month)),
-                ButtonSegment(
-                    value: DashboardView.analytics,
-                    label:
-                        Text(FFLocalizations.of(context).getText('analytics')),
-                    icon: const Icon(Icons.bar_chart)),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchAllAppointmentsForPartner(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final allAppointments = snapshot.data!;
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: SegmentedButton<DashboardView>(
+                    segments: [
+                      ButtonSegment(
+                          value: DashboardView.schedule,
+                          label: Text(
+                              FFLocalizations.of(context).getText('schedule')),
+                          icon: const Icon(Icons.calendar_month)),
+                      ButtonSegment(
+                          value: DashboardView.analytics,
+                          label: Text(
+                              FFLocalizations.of(context).getText('analytics')),
+                          icon: const Icon(Icons.bar_chart)),
+                    ],
+                    selected: {_model.currentView},
+                    onSelectionChanged: (newSelection) {
+                      setState(() => _model.currentView = newSelection.first);
+                    },
+                    style: SegmentedButton.styleFrom(
+                      backgroundColor: theme.secondaryBackground,
+                      foregroundColor: theme.primaryText,
+                      selectedForegroundColor: Colors.white,
+                      selectedBackgroundColor: theme.primary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _model.currentView == DashboardView.schedule
+                      ? _ScheduleView(
+                          model: _model,
+                          allAppointments: allAppointments,
+                          bookingSystemType: widget.bookingSystemType,
+                          onRefresh: () => setState(() => _refreshCounter++),
+                        )
+                      : _AnalyticsView(partnerId: widget.partnerId),
+                ),
               ],
-              selected: {_model.currentView},
-              onSelectionChanged: (newSelection) {
-                setState(() => _model.currentView = newSelection.first);
-              },
-              style: SegmentedButton.styleFrom(
-                backgroundColor: theme.secondaryBackground,
-                foregroundColor: theme.primaryText,
-                selectedForegroundColor: Colors.white,
-                selectedBackgroundColor: theme.primary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: _model.currentView == DashboardView.schedule
-                ? _ScheduleView(
-                    model: _model,
-                    partnerId: widget.partnerId,
-                    bookingSystemType: widget.bookingSystemType)
-                : _AnalyticsView(partnerId: widget.partnerId),
-          ),
-        ],
-      ),
+            );
+          }),
     );
   }
 }
@@ -427,7 +455,8 @@ class _ClinicScheduleViewState extends State<_ClinicScheduleView> {
               }
               final doctors = snapshot.data!;
               return DropdownButtonFormField<String>(
-                initialValue: _selectedDoctorId,
+                // Use initialValue for DropdownButtonFormField
+                value: _selectedDoctorId,
                 hint: Text(FFLocalizations.of(context).getText('fltrdoc')),
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
@@ -548,7 +577,7 @@ class _ClinicAnalyticsView extends StatelessWidget {
             'total': summary['total'] as int? ?? 0,
             'week_completed': summary['week_completed'] as int? ?? 0,
             'month_completed': summary['month_completed'] as int? ?? 0,
-            'partner_canceled': 0,
+            'partner_canceled': 0, // Not applicable for clinic view
           },
           weeklyStats: weekly,
         );
@@ -560,89 +589,106 @@ class _ClinicAnalyticsView extends StatelessWidget {
 class _ScheduleView extends StatelessWidget {
   const _ScheduleView({
     required this.model,
-    required this.partnerId,
+    required this.allAppointments,
     required this.bookingSystemType,
+    required this.onRefresh,
   });
   final PartnerDashboardPageModel model;
-  final String partnerId;
+  final List<Map<String, dynamic>> allAppointments;
   final String bookingSystemType;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     if (bookingSystemType == 'number_based') {
-      return _NumberQueueView(model: model, partnerId: partnerId);
+      return _NumberQueueView(
+        model: model,
+        allAppointments: allAppointments,
+        partnerId: Supabase.instance.client.auth.currentUser!.id,
+        onRefresh: onRefresh,
+      );
     } else {
-      return _TimeSlotView(model: model, partnerId: partnerId);
+      return _TimeSlotView(
+        model: model,
+        allAppointments: allAppointments,
+        onRefresh: onRefresh,
+      );
     }
   }
 }
 
 class _TimeSlotView extends StatefulWidget {
-  const _TimeSlotView({required this.model, required this.partnerId});
+  const _TimeSlotView(
+      {required this.model,
+      required this.allAppointments,
+      required this.onRefresh});
   final PartnerDashboardPageModel model;
-  final String partnerId;
+  final List<Map<String, dynamic>> allAppointments;
+  final VoidCallback onRefresh;
 
   @override
   State<_TimeSlotView> createState() => _TimeSlotViewState();
 }
 
 class _TimeSlotViewState extends State<_TimeSlotView> {
-  int _refreshKey = 0;
+  List<Map<String, dynamic>> get _filteredAppointments {
+    var filtered = widget.allAppointments.where((appt) {
+      // Filter by slot-based (appointment_number is null)
+      if (appt['appointment_number'] != null) return false;
 
-  Future<List<Map<String, dynamic>>> _fetchTimeSlotAppointments() async {
-    final client = Supabase.instance.client;
-    const baseSelect = '*, users (first_name, last_name, phone)';
+      // Filter by status
+      List<String> targetStatuses;
+      if (widget.model.selectedStatus == 'Canceled') {
+        targetStatuses = ['Cancelled_ByUser', 'Cancelled_ByPartner', 'NoShow'];
+      } else {
+        targetStatuses = [widget.model.selectedStatus];
+      }
+      if (!targetStatuses.contains(appt['status'])) return false;
 
-    var query = client
-        .from('appointments')
-        .select(baseSelect)
-        .eq('partner_id', widget.partnerId)
-        .filter('appointment_number', 'is', null);
+      return true;
+    }).toList();
 
-    if (widget.model.selectedStatus == 'Canceled') {
-      query = query.inFilter(
-          'status', ['Cancelled_ByUser', 'Cancelled_ByPartner', 'NoShow']);
-    } else {
-      query = query.eq('status', widget.model.selectedStatus);
-    }
-
-    DateTime now = DateTime.now();
-    DateTimeRange dateRange;
-
-    switch (widget.model.dateFilter) {
-      case DateRangeFilter.day:
-        final selectedDay = widget.model.calendarSelectedDay?.start ?? now;
-        dateRange = DateTimeRange(
-            start: selectedDay.startOfDay, end: selectedDay.endOfDay);
-        break;
-      case DateRangeFilter.week:
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        dateRange = DateTimeRange(
-            start: startOfWeek.startOfDay,
-            end: startOfWeek.add(const Duration(days: 6)).endOfDay);
-        break;
-      case DateRangeFilter.month:
-        final startOfMonth = DateTime(now.year, now.month, 1);
-        dateRange = DateTimeRange(
-            start: startOfMonth,
-            end: DateTime(now.year, now.month + 1, 0).endOfDay);
-        break;
-      case DateRangeFilter.today:
-        dateRange = DateTimeRange(start: now.startOfDay, end: now.endOfDay);
-        break;
-      case DateRangeFilter.all:
-        dateRange = DateTimeRange(start: DateTime(2000), end: DateTime(3000));
-        break;
-    }
-
+    // Filter by date
     if (widget.model.dateFilter != DateRangeFilter.all) {
-      query = query
-          .gte('appointment_time', dateRange.start.toUtc().toIso8601String())
-          .lt('appointment_time', dateRange.end.toUtc().toIso8601String());
+      DateTime now = DateTime.now();
+      DateTimeRange dateRange;
+      switch (widget.model.dateFilter) {
+        case DateRangeFilter.day:
+          final selectedDay = widget.model.calendarSelectedDay?.start ?? now;
+          dateRange = DateTimeRange(
+              start: selectedDay.startOfDay, end: selectedDay.endOfDay);
+          break;
+        case DateRangeFilter.week:
+          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+          dateRange = DateTimeRange(
+              start: startOfWeek.startOfDay,
+              end: startOfWeek.add(const Duration(days: 6)).endOfDay);
+          break;
+        case DateRangeFilter.month:
+          final startOfMonth = DateTime(now.year, now.month, 1);
+          dateRange = DateTimeRange(
+              start: startOfMonth,
+              end: DateTime(now.year, now.month + 1, 0).endOfDay);
+          break;
+        case DateRangeFilter.today:
+          dateRange = DateTimeRange(start: now.startOfDay, end: now.endOfDay);
+          break;
+        default:
+          dateRange = DateTimeRange(start: DateTime(2000), end: DateTime(3000));
+      }
+
+      filtered = filtered.where((appt) {
+        final apptTime = DateTime.parse(appt['appointment_time']).toLocal();
+        return apptTime.isAfter(dateRange.start) &&
+            apptTime.isBefore(dateRange.end);
+      }).toList();
     }
 
-    final response = await query.order('appointment_time', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    // Sort
+    filtered.sort((a, b) => DateTime.parse(a['appointment_time'])
+        .compareTo(DateTime.parse(b['appointment_time'])));
+
+    return filtered;
   }
 
   @override
@@ -722,7 +768,6 @@ class _TimeSlotViewState extends State<_TimeSlotView> {
                       if (isSelected) {
                         setState(() {
                           widget.model.selectedStatus = status;
-                          _refreshKey++;
                         });
                       }
                     },
@@ -741,83 +786,67 @@ class _TimeSlotViewState extends State<_TimeSlotView> {
           ),
         ),
         const Divider(height: 1),
-        FutureBuilder<List<Map<String, dynamic>>>(
-          key: ValueKey(_refreshKey),
-          future: _fetchTimeSlotAppointments(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                  child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator()));
-            }
-            if (snapshot.hasError) {
-              return Center(
-                  child: Text('An error occurred.', style: theme.bodyMedium));
-            }
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return EmptyStateWidget(
-                icon: Icons.calendar_view_day_rounded,
-                title: FFLocalizations.of(context).getText('noaptsfound'),
-                message: FFLocalizations.of(context).getText('noaptsfltr'),
+        if (_filteredAppointments.isEmpty)
+          EmptyStateWidget(
+            icon: Icons.calendar_view_day_rounded,
+            title: FFLocalizations.of(context).getText('noaptsfound'),
+            message: FFLocalizations.of(context).getText('noaptsfltr'),
+          )
+        else
+          ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            primary: false,
+            shrinkWrap: true,
+            itemCount: _filteredAppointments.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: _AppointmentInfoCard(
+                  appointmentData: _filteredAppointments[index],
+                  onAction: widget.onRefresh,
+                ),
               );
-            }
-
-            final appointments = snapshot.data!;
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              primary: false,
-              shrinkWrap: true,
-              itemCount: appointments.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: _AppointmentInfoCard(
-                    appointmentData: appointments[index],
-                    onAction: () => setState(() {
-                      _refreshKey++;
-                    }),
-                  ),
-                );
-              },
-            );
-          },
-        ),
+            },
+          )
       ],
     );
   }
 }
 
 class _NumberQueueView extends StatefulWidget {
-  const _NumberQueueView({required this.model, required this.partnerId});
+  const _NumberQueueView(
+      {required this.model,
+      required this.allAppointments,
+      required this.partnerId,
+      required this.onRefresh});
   final PartnerDashboardPageModel model;
+  final List<Map<String, dynamic>> allAppointments;
   final String partnerId;
+  final VoidCallback onRefresh;
 
   @override
   State<_NumberQueueView> createState() => _NumberQueueViewState();
 }
 
 class _NumberQueueViewState extends State<_NumberQueueView> {
-  int _refreshKey = 0;
-
-  Future<List<Map<String, dynamic>>> _fetchNumberedAppointments() async {
-    final client = Supabase.instance.client;
+  List<Map<String, dynamic>> get _todaysAppointments {
     final selectedDay =
         widget.model.calendarSelectedDay?.start ?? DateTime.now();
     final startOfDay =
         DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    return await client
-        .from('appointments')
-        .select('*, users (first_name, last_name, phone)')
-        .eq('partner_id', widget.partnerId)
-        .gte('appointment_time', startOfDay.toUtc().toIso8601String())
-        .lt('appointment_time', endOfDay.toUtc().toIso8601String())
-        .not('status', 'in',
-            ['Cancelled_ByUser', 'Cancelled_ByPartner', 'Completed', 'NoShow'])
-        .order('appointment_number', ascending: true)
-        .then((data) => List<Map<String, dynamic>>.from(data));
+    return widget.allAppointments.where((appt) {
+      final apptTime = DateTime.parse(appt['appointment_time']).toLocal();
+      final status = appt['status'] as String;
+
+      return apptTime.isAfter(startOfDay) &&
+          apptTime.isBefore(endOfDay) &&
+          !['Cancelled_ByUser', 'Cancelled_ByPartner', 'Completed', 'NoShow']
+              .contains(status);
+    }).toList()
+      ..sort((a, b) => (a['appointment_number'] as int)
+          .compareTo(b['appointment_number'] as int));
   }
 
   @override
@@ -825,6 +854,13 @@ class _NumberQueueViewState extends State<_NumberQueueView> {
     final theme = FlutterFlowTheme.of(context);
     final selectedDay =
         widget.model.calendarSelectedDay?.start ?? DateTime.now();
+
+    final nowServingAppointment = _todaysAppointments.firstWhere(
+      (a) => a['status'] == 'Confirmed',
+      orElse: () => {},
+    );
+    final upNextAppointments =
+        _todaysAppointments.where((a) => a['status'] == 'Pending').toList();
 
     return Column(
       children: [
@@ -842,7 +878,6 @@ class _NumberQueueViewState extends State<_NumberQueueView> {
                 setState(() {
                   widget.model.calendarSelectedDay =
                       DateTimeRange(start: pickedDate, end: pickedDate);
-                  _refreshKey++;
                 });
               }
             },
@@ -868,95 +903,74 @@ class _NumberQueueViewState extends State<_NumberQueueView> {
           ),
         ),
         Expanded(
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            key: ValueKey(_refreshKey),
-            future: _fetchNumberedAppointments(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(
-                    child: Text('An error occurred: ${snapshot.error}'));
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return EmptyStateWidget(
+          child: _todaysAppointments.isEmpty
+              ? EmptyStateWidget(
                   icon: Icons.people_outline,
                   title: FFLocalizations.of(context).getText('qready'),
                   message:
                       'There are no active appointments in the queue for this day.',
-                );
-              }
-
-              final appointments = snapshot.data!;
-              final nowServingAppointment = appointments.firstWhere(
-                (a) => a['status'] == 'Confirmed',
-                orElse: () => {},
-              );
-              final upNextAppointments =
-                  appointments.where((a) => a['status'] == 'Pending').toList();
-
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                children: [
-                  if (nowServingAppointment.isNotEmpty)
-                    NowServingCard(
-                      appointmentData: nowServingAppointment,
-                      onAction: () => setState(() => _refreshKey++),
-                    ),
-                  if (upNextAppointments.isNotEmpty) ...[
-                    Padding(
-                      padding: EdgeInsets.only(
-                          top: nowServingAppointment.isNotEmpty ? 24 : 8,
-                          bottom: 8),
-                      child: Text(FFLocalizations.of(context).getText('upnext'),
-                          style: FlutterFlowTheme.of(context).titleLarge),
-                    ),
-                    ...upNextAppointments.map((appt) => _UpNextQueueCard(
-                          appointmentData: appt,
-                          partnerId: widget.partnerId,
-                          onAction: () => setState(() => _refreshKey++),
-                        )),
-                  ],
-                  if (nowServingAppointment.isEmpty &&
-                      upNextAppointments.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24.0),
-                      child: Column(
-                        children: [
-                          Text(FFLocalizations.of(context).getText('qready'),
-                              style: theme.headlineSmall),
-                          const SizedBox(height: 8),
-                          Text(FFLocalizations.of(context).getText('callnext'),
-                              style: theme.bodyMedium),
-                          const SizedBox(height: 16),
-                          FFButtonWidget(
-                            onPressed: () async {
-                              final nextPatient = upNextAppointments.first;
-                              await Supabase.instance.client
-                                  .from('appointments')
-                                  .update({
-                                'status': 'Confirmed',
-                              }).eq('id', nextPatient['id']);
-                              setState(() => _refreshKey++);
-                            },
-                            text: FFLocalizations.of(context)
-                                .getText('callnextbtn'),
-                            icon: const Icon(Icons.campaign_outlined),
-                            options: FFButtonOptions(
-                              height: 50,
-                              color: theme.primary,
-                              textStyle: theme.titleSmall
-                                  .copyWith(color: Colors.white),
-                            ),
-                          )
-                        ],
+                )
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                  children: [
+                    if (nowServingAppointment.isNotEmpty)
+                      NowServingCard(
+                        appointmentData: nowServingAppointment,
+                        onAction: widget.onRefresh,
                       ),
-                    )
-                ],
-              );
-            },
-          ),
+                    if (upNextAppointments.isNotEmpty) ...[
+                      Padding(
+                        padding: EdgeInsets.only(
+                            top: nowServingAppointment.isNotEmpty ? 24 : 8,
+                            bottom: 8),
+                        child: Text(
+                            FFLocalizations.of(context).getText('upnext'),
+                            style: FlutterFlowTheme.of(context).titleLarge),
+                      ),
+                      ...upNextAppointments.map((appt) => _UpNextQueueCard(
+                            appointmentData: appt,
+                            partnerId: widget.partnerId,
+                            onAction: widget.onRefresh,
+                          )),
+                    ],
+                    if (nowServingAppointment.isEmpty &&
+                        upNextAppointments.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24.0),
+                        child: Column(
+                          children: [
+                            Text(FFLocalizations.of(context).getText('qready'),
+                                style: theme.headlineSmall),
+                            const SizedBox(height: 8),
+                            Text(
+                                FFLocalizations.of(context).getText('callnext'),
+                                style: theme.bodyMedium),
+                            const SizedBox(height: 16),
+                            FFButtonWidget(
+                              onPressed: () async {
+                                final nextPatient = upNextAppointments.first;
+                                await Supabase.instance.client
+                                    .from('appointments')
+                                    .update({
+                                  'status': 'Confirmed',
+                                }).eq('id', nextPatient['id']);
+                                widget.onRefresh();
+                              },
+                              text: FFLocalizations.of(context)
+                                  .getText('callnextbtn'),
+                              icon: const Icon(Icons.campaign_outlined),
+                              options: FFButtonOptions(
+                                height: 50,
+                                color: theme.primary,
+                                textStyle: theme.titleSmall
+                                    .copyWith(color: Colors.white),
+                              ),
+                            )
+                          ],
+                        ),
+                      )
+                  ],
+                ),
         ),
       ],
     );

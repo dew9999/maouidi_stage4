@@ -26,7 +26,8 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
   late TabController _tabController;
   final ValueNotifier<int> _refreshNotifier = ValueNotifier<int>(0);
 
-  RealtimeChannel? _appointmentsChannel;
+  StreamSubscription<List<Map<String, dynamic>>>? _appointmentsSubscription;
+  Map<int, String> _previousAppointmentStatuses = {};
 
   void _showPaymentDialog(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
@@ -44,7 +45,7 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.warning.withOpacity(0.1),
+                  color: theme.warning.withAlpha(25),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: theme.warning, width: 1),
                 ),
@@ -108,38 +109,44 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
     _setupRealtimeListener();
   }
 
-  // MODIFICATION: This is the final, correct syntax.
   void _setupRealtimeListener() {
     final client = Supabase.instance.client;
     final userId = client.auth.currentUser?.id;
     if (userId == null) return;
 
-    _appointmentsChannel =
-        client.channel('public:appointments:booking_user_id=eq.$userId').on(
-      RealtimeListenTypes.postgresChanges,
-      ChannelFilter(
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'appointments',
-        filter: 'booking_user_id=eq.$userId',
-      ),
-      (payload, [ref]) {
-        final oldRecord = payload['old'] as Map<String, dynamic>?;
-        final newRecord = payload['new'] as Map<String, dynamic>?;
+    _appointmentsSubscription = client
+        .from('appointments')
+        .stream(primaryKey: ['id'])
+        .eq('booking_user_id', userId)
+        .listen((List<Map<String, dynamic>> data) {
+          final newStatuses = <int, String>{};
+          bool needsRefresh = false;
 
-        if (oldRecord != null &&
-            newRecord != null &&
-            oldRecord['status'] == 'Pending' &&
-            newRecord['status'] == 'Confirmed') {
-          _checkIfHomecareAndShowDialog(newRecord['partner_id']);
+          for (final appointment in data) {
+            final id = appointment['id'] as int;
+            final newStatus = appointment['status'] as String;
+            newStatuses[id] = newStatus;
 
-          if (mounted) {
+            final oldStatus = _previousAppointmentStatuses[id];
+
+            // This is the "real-world" logic:
+            // Check if a specific appointment has changed from 'Pending' to 'Confirmed'.
+            if (oldStatus == 'Pending' && newStatus == 'Confirmed') {
+              _checkIfHomecareAndShowDialog(appointment['partner_id']);
+              needsRefresh = true;
+            } else if (oldStatus != null && oldStatus != newStatus) {
+              // Also refresh for any other status change (e.g., cancelled)
+              needsRefresh = true;
+            }
+          }
+
+          if (needsRefresh && mounted) {
             _refreshNotifier.value++;
           }
-        }
-      },
-    );
-    _appointmentsChannel!.subscribe();
+
+          // Update the state for the next comparison
+          _previousAppointmentStatuses = newStatuses;
+        });
   }
 
   Future<void> _checkIfHomecareAndShowDialog(String partnerId) async {
@@ -163,9 +170,7 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
     _tabController.dispose();
     _refreshNotifier.dispose();
     _model.dispose();
-    if (_appointmentsChannel != null) {
-      Supabase.instance.client.removeChannel(_appointmentsChannel!);
-    }
+    _appointmentsSubscription?.cancel();
     super.dispose();
   }
 
@@ -185,7 +190,6 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
     if (isUpcoming != null) {
       final now = DateTime.now();
       final startOfToday = DateTime(now.year, now.month, now.day);
-      // MODIFICATION: Corrected typo to toIso8601String
       final filterTime = startOfToday.toUtc().toIso8601String();
 
       if (isUpcoming) {
