@@ -30,7 +30,8 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.mycompany.maouidi"
-    compileSdkVersion 34
+    // FIX: Updated compileSdkVersion to 35
+    compileSdkVersion 35
 
     compileOptions {
         coreLibraryDesugaringEnabled = true
@@ -54,7 +55,8 @@ android {
     defaultConfig {
         applicationId "com.mycompany.maouidi"
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 34
+        // FIX: Updated targetSdkVersion to 35
+        targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
