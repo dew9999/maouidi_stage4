@@ -110,18 +110,27 @@ class _StandardPartnerDashboardView extends StatefulWidget {
 class _StandardPartnerDashboardViewState
     extends State<_StandardPartnerDashboardView> {
   late PartnerDashboardPageModel _model;
-  int _refreshCounter = 0;
+  // FIX: Hold the future in the state to prevent re-fetching on every build
+  late Future<List<Map<String, dynamic>>> _appointmentsFuture;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => PartnerDashboardPageModel());
+    _appointmentsFuture = _fetchAllAppointmentsForPartner();
   }
 
   @override
   void dispose() {
     _model.dispose();
     super.dispose();
+  }
+
+  // FIX: Method to refresh the data when needed
+  void _refreshData() {
+    setState(() {
+      _appointmentsFuture = _fetchAllAppointmentsForPartner();
+    });
   }
 
   Future<List<Map<String, dynamic>>> _fetchAllAppointmentsForPartner() async {
@@ -237,7 +246,7 @@ class _StandardPartnerDashboardViewState
                         content: Text(
                             FFLocalizations.of(context).getText('apptcreated')),
                         backgroundColor: Colors.green));
-                    setState(() => _refreshCounter++);
+                    _refreshData();
                   }
                 } catch (e) {
                   if (mounted) {
@@ -259,7 +268,6 @@ class _StandardPartnerDashboardViewState
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     return Scaffold(
-      key: ValueKey(_refreshCounter),
       floatingActionButton: _model.currentView != DashboardView.schedule
           ? null
           : FloatingActionButton(
@@ -273,8 +281,7 @@ class _StandardPartnerDashboardViewState
                       'partnerId': widget.partnerId,
                       'isPartnerBooking': 'true',
                     },
-                  ).then((_) =>
-                      setState(() => _refreshCounter++)); // Refresh on return
+                  ).then((_) => _refreshData()); // Refresh on return
                 }
               },
               backgroundColor: theme.primary,
@@ -282,7 +289,7 @@ class _StandardPartnerDashboardViewState
               child: const Icon(Icons.add, color: Colors.white, size: 28),
             ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchAllAppointmentsForPartner(),
+          future: _appointmentsFuture, // FIX: Use the state future variable
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -325,7 +332,7 @@ class _StandardPartnerDashboardViewState
                           model: _model,
                           allAppointments: allAppointments,
                           bookingSystemType: widget.bookingSystemType,
-                          onRefresh: () => setState(() => _refreshCounter++),
+                          onRefresh: _refreshData, // FIX: Pass refresh method
                         )
                       : _AnalyticsView(partnerId: widget.partnerId),
                 ),

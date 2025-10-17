@@ -346,7 +346,6 @@ class __NumberQueueBookingViewState extends State<_NumberQueueBookingView> {
     final dayOfWeekKey = _selectedDate.weekday.toString();
     final isWorkingDay = widget.workingHours.containsKey(dayOfWeekKey);
 
-    // FIX: Add a check for past dates
     final isPastDay = _selectedDate.isBefore(DateTime.now().startOfDay);
 
     final bool isButtonDisabled =
@@ -394,7 +393,6 @@ class __NumberQueueBookingViewState extends State<_NumberQueueBookingView> {
                     color: theme.primary),
                 const SizedBox(height: 16),
                 Text(
-                  // MODIFICATION: Make it clearer that this is for a specific day
                   '${widget.partnerCategory == 'Homecare' ? FFLocalizations.of(context).getText('requestvisit') : FFLocalizations.of(context).getText('getnumberfor')} for the day of:',
                   textAlign: TextAlign.center,
                   style: theme.headlineSmall,
@@ -416,7 +414,8 @@ class __NumberQueueBookingViewState extends State<_NumberQueueBookingView> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: Text(
-                      'You cannot book for a past date.',
+                      FFLocalizations.of(context)
+                          .getText('past_date_booking_error'),
                       textAlign: TextAlign.center,
                       style: theme.bodyMedium.copyWith(color: theme.error),
                     ),

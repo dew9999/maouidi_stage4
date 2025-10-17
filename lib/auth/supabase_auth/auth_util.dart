@@ -1,7 +1,6 @@
 // lib/auth/supabase_auth/auth_util.dart
 
 import 'dart:async';
-// 'rxdart' is no longer needed, so we remove it.
 import 'package:maouidi/backend/supabase/supabase.dart';
 import '../base_auth_user_provider.dart';
 import '../auth_manager.dart';

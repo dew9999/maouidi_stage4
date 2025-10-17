@@ -8,7 +8,6 @@ enum SlotStatus { available, booked, inPast }
 
 class TimeSlot {
   final DateTime time;
-  // This can be simplified as we now only get available slots, but we keep it for UI consistency
   final SlotStatus status;
   TimeSlot({required this.time, required this.status});
 }
