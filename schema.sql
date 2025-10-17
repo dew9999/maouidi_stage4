@@ -166,12 +166,10 @@ DECLARE
   new_appointment_number INT;
   new_appointment_status TEXT;
   day_of_week_arg TEXT;
-  -- A variable to check if the time is valid
   is_within_working_hours BOOLEAN := FALSE;
   time_range TEXT;
 BEGIN
-  -- Fetch partner details
-  SELECT category, confirmation_mode, booking_system_type, daily_booking_limit, working_hours
+  SELECT is_active, category, confirmation_mode, booking_system_type, daily_booking_limit, working_hours, closed_days
   INTO partner_data
   FROM public.medical_partners WHERE id = partner_id_arg;
 
@@ -179,32 +177,49 @@ BEGIN
     RAISE EXCEPTION 'Medical partner not found.';
   END IF;
 
-  -- Check if partner has set up working hours
+  -- MODIFICATION: Add a server-side check to prevent booking on past dates for any system type.
+  IF appointment_time_arg::date < current_date AND NOT is_partner_override THEN
+      RAISE EXCEPTION 'You cannot book an appointment for a past date.';
+  END IF;
+
+  IF appointment_time_arg <= now() AND NOT is_partner_override AND partner_data.booking_system_type = 'time_based' THEN
+      RAISE EXCEPTION 'You cannot book an appointment in the past.';
+  END IF;
+
+  IF partner_data.category = 'Charities' THEN
+    RAISE EXCEPTION 'Booking is not available for this type of partner.';
+  END IF;
+
+  IF NOT partner_data.is_active AND NOT is_partner_override THEN
+    RAISE EXCEPTION 'This partner is not currently accepting appointments.';
+  END IF;
+
+  IF appointment_time_arg::date = ANY(partner_data.closed_days) THEN
+      RAISE EXCEPTION 'This partner is closed on the selected date.';
+  END IF;
+
   IF partner_data.working_hours IS NOT NULL THEN
     day_of_week_arg := EXTRACT(ISODOW FROM appointment_time_arg)::TEXT;
     IF NOT (partner_data.working_hours ? day_of_week_arg) THEN
       RAISE EXCEPTION 'This provider does not work on the selected day.';
     END IF;
 
-    -- Loop through the working hour ranges for the day to validate the appointment time
     FOR time_range IN SELECT * FROM jsonb_array_elements_text(partner_data.working_hours -> day_of_week_arg)
     LOOP
       IF appointment_time_arg::TIME >= split_part(time_range, '-', 1)::TIME AND
          appointment_time_arg::TIME < split_part(time_range, '-', 2)::TIME THEN
         is_within_working_hours := TRUE;
-        EXIT; -- Exit the loop as soon as a valid slot is found
+        EXIT;
       END IF;
     END LOOP;
 
     IF NOT is_within_working_hours THEN
       RAISE EXCEPTION 'The selected time is outside of the provider''s working hours.';
     END IF;
-
   ELSE
       RAISE EXCEPTION 'This provider has not set up their working hours.';
   END IF;
-
-  -- Determine the initial status of the appointment
+  
   IF partner_data.category = 'Homecare' THEN
     new_appointment_status := 'Pending';
   ELSE
@@ -215,7 +230,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- Prevent users from double-booking on the same day unless it's a partner override
   IF NOT is_partner_override THEN
     IF partner_data.booking_system_type = 'number_based' THEN
       SELECT EXISTS (
@@ -223,7 +237,7 @@ BEGIN
         WHERE
           booking_user_id = booking_user_id_arg AND
           partner_id = partner_id_arg AND
-          DATE(appointment_time) = DATE(appointment_time_arg) AND
+          DATE(appointment_time AT TIME ZONE 'utc') = DATE(appointment_time_arg AT TIME ZONE 'utc') AND
           status IN ('Pending', 'Confirmed', 'Rescheduled')
       ) INTO has_existing_appointment;
       IF has_existing_appointment THEN
@@ -233,18 +247,16 @@ BEGIN
       SELECT EXISTS (
         SELECT 1 FROM public.appointments
         WHERE
-          booking_user_id = booking_user_id_arg AND
           partner_id = partner_id_arg AND
-          DATE(appointment_time) = DATE(appointment_time_arg) AND
+          appointment_time = appointment_time_arg AND
           status IN ('Pending', 'Confirmed', 'Rescheduled')
       ) INTO has_existing_appointment;
       IF has_existing_appointment THEN
-        RAISE EXCEPTION 'You already have an active appointment with this partner on this day.';
+        RAISE EXCEPTION 'This time slot has already been booked.';
       END IF;
     END IF;
   END IF;
   
-  -- Insert the appointment based on the booking system type
   IF partner_data.booking_system_type = 'time_based' THEN
     INSERT INTO public.appointments (partner_id, booking_user_id, appointment_time, on_behalf_of_patient_name, on_behalf_of_patient_phone, status, case_description, patient_location)
     VALUES (partner_id_arg, booking_user_id_arg, appointment_time_arg, on_behalf_of_name_arg, on_behalf_of_phone_arg, new_appointment_status, case_description_arg, patient_location_arg);
@@ -257,7 +269,7 @@ BEGIN
       DATE(appointment_time AT TIME ZONE 'utc') = DATE(appointment_time_arg AT TIME ZONE 'utc') AND
       status IN ('Pending', 'Confirmed', 'Rescheduled');
     
-    IF new_appointment_number > partner_data.daily_booking_limit THEN
+    IF partner_data.daily_booking_limit IS NOT NULL AND new_appointment_number > partner_data.daily_booking_limit THEN
       RAISE EXCEPTION 'This partner is fully booked on this day.';
     END IF;
     
@@ -280,26 +292,43 @@ DECLARE
   canceled_app_number INT;
   canceled_app_date DATE;
   current_user_id UUID := auth.uid();
+  is_partner BOOLEAN;
 BEGIN
-  SELECT partner_id, appointment_number, DATE(appointment_time)
+  -- Check if the current user is the partner for this appointment
+  SELECT TRUE INTO is_partner
+  FROM public.appointments
+  WHERE id = appointment_id_arg AND partner_id = current_user_id;
+
+  -- Get appointment details. Allow either the patient or the partner to initiate cancellation.
+  -- MODIFICATION: Cast appointment_time to DATE in UTC for consistency
+  SELECT partner_id, appointment_number, DATE(appointment_time AT TIME ZONE 'utc')
   INTO canceled_app_partner_id, canceled_app_number, canceled_app_date
   FROM public.appointments
-  WHERE id = appointment_id_arg AND booking_user_id = current_user_id;
-  IF NOT FOUND OR canceled_app_number IS NULL THEN
-    UPDATE public.appointments
-    SET status = 'Cancelled_ByUser'
-    WHERE id = appointment_id_arg AND booking_user_id = current_user_id;
+  WHERE id = appointment_id_arg AND (booking_user_id = current_user_id OR partner_id = current_user_id);
+
+  -- If the appointment doesn't exist or doesn't belong to the user/partner, do nothing.
+  IF NOT FOUND THEN
     RETURN;
   END IF;
+
+  -- Update the status based on who is canceling
   UPDATE public.appointments
-  SET status = 'Cancelled_ByUser'
+  SET status = CASE WHEN is_partner THEN 'Cancelled_ByPartner' ELSE 'Cancelled_ByUser' END
   WHERE id = appointment_id_arg;
+
+  -- If it's not a numbered queue, there's no reordering to do.
+  IF canceled_app_number IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- Reorder the queue for the remaining appointments on that day
   UPDATE public.appointments
   SET appointment_number = appointment_number - 1
   WHERE
     partner_id = canceled_app_partner_id
-    AND DATE(appointment_time) = canceled_app_date
-    AND appointment_number > canceled_app_number;
+    AND DATE(appointment_time AT TIME ZONE 'utc') = canceled_app_date
+    AND appointment_number > canceled_app_number
+    AND status IN ('Pending', 'Confirmed', 'Rescheduled'); -- Only affect active appointments
 END;
 $$;
 
@@ -397,36 +426,37 @@ DECLARE
   day_of_week TEXT;
   time_ranges JSONB;
 BEGIN
-  -- Get partner's working hours and appointment duration
-  SELECT working_hours, appointment_dur INTO partner_settings
+  SELECT category, is_active, working_hours, appointment_dur, closed_days INTO partner_settings
   FROM public.medical_partners
   WHERE id = partner_id_arg;
 
-  -- Get the day of the week (1 for Monday, 7 for Sunday)
+  -- MODIFICATION: Exit immediately if the partner is a charity or inactive.
+  IF partner_settings.category = 'Charities' OR NOT partner_settings.is_active THEN
+    RETURN;
+  END IF;
+
+  IF day_arg = ANY(partner_settings.closed_days) THEN
+    RETURN;
+  END IF;
+
   day_of_week := EXTRACT(ISODOW FROM day_arg)::TEXT;
   
-  -- Check if the partner works on this day
   IF partner_settings.working_hours IS NULL OR NOT (partner_settings.working_hours ? day_of_week) THEN
     RETURN;
   END IF;
 
   time_ranges := partner_settings.working_hours -> day_of_week;
 
-  -- Generate all possible slots and return only the available ones
   RETURN QUERY
   WITH all_possible_slots AS (
     SELECT
-      -- Generate a series of timestamps for each working period of the day
       generate_series(
-        -- --- MODIFIED: Use split_part to correctly parse the start time ---
         (day_arg + split_part(range_item, '-', 1)::TIME)::TIMESTAMPTZ,
-        -- --- MODIFIED: Use split_part to correctly parse the end time ---
         (day_arg + split_part(range_item, '-', 2)::TIME)::TIMESTAMPTZ - (partner_settings.appointment_dur * interval '1 minute'),
         (partner_settings.appointment_dur * interval '1 minute')
       ) AS slot_time
     FROM jsonb_array_elements_text(time_ranges) AS range_item
   )
-  -- Select only the slots that are in the future and not booked
   SELECT aps.slot_time
   FROM all_possible_slots aps
   WHERE
@@ -436,7 +466,7 @@ BEGIN
       FROM public.appointments a
       WHERE a.partner_id = partner_id_arg
         AND a.appointment_time = aps.slot_time
-        AND a.status IN ('Pending', 'Confirmed')
+        AND a.status IN ('Pending', 'Confirmed', 'Rescheduled')
     );
 END;
 $$;
@@ -577,7 +607,6 @@ COMMENT ON TABLE "public"."medical_partners" IS 'Stores profiles for all medical
 
 CREATE OR REPLACE FUNCTION "public"."get_filtered_partners"("category_arg" "text", "state_arg" "text", "specialty_arg" "text") RETURNS SETOF "public"."medical_partners"
     LANGUAGE "sql"
-    SET "search_path" TO ''
     AS $$
   SELECT mp.*
   FROM public.medical_partners AS mp
@@ -620,6 +649,42 @@ $$;
 
 
 ALTER FUNCTION "public"."get_partner_analytics"("partner_id_arg" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_partner_dashboard_appointments"("partner_id_arg" "uuid") RETURNS TABLE("id" bigint, "partner_id" "uuid", "booking_user_id" "uuid", "on_behalf_of_patient_name" "text", "appointment_time" timestamp with time zone, "status" "text", "on_behalf_of_patient_phone" "text", "appointment_number" integer, "is_rescheduled" boolean, "completed_at" timestamp with time zone, "has_review" boolean, "case_description" "text", "patient_location" "text", "patient_first_name" "text", "patient_last_name" "text", "patient_phone" "text")
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    a.id,
+    a.partner_id,
+    a.booking_user_id,
+    a.on_behalf_of_patient_name,
+    a.appointment_time,
+    a.status,
+    a.on_behalf_of_patient_phone,
+    a.appointment_number,
+    a.is_rescheduled,
+    a.completed_at,
+    a.has_review,
+    a.case_description,
+    a.patient_location,
+    -- Aliasing user columns to match frontend expectations
+    u.first_name as patient_first_name,
+    u.last_name as patient_last_name,
+    u.phone as patient_phone
+  FROM
+    public.appointments AS a
+  LEFT JOIN
+    public.users AS u ON a.booking_user_id = u.id
+  WHERE
+    a.partner_id = partner_id_arg;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_partner_dashboard_appointments"("partner_id_arg" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_reviews_with_user_names"("partner_id_arg" "uuid") RETURNS TABLE("rating" numeric, "review_text" "text", "created_at" timestamp with time zone, "first_name" "text", "gender" "text")
@@ -680,52 +745,57 @@ DECLARE
   partner_name TEXT;
   patient_name TEXT;
   recipient_id UUID;
-  notification_title TEXT;
-  notification_body TEXT;
+  notification_type TEXT;
+  notification_data JSONB;
 BEGIN
   SELECT full_name INTO partner_name FROM public.medical_partners WHERE id = NEW.partner_id;
-  SELECT COALESCE(NEW.on_behalf_of_patient_name, u.first_name || ' ' || u.last_name, 'A patient')
+  
+  -- Get patient name, falling back gracefully
+  SELECT COALESCE(u.first_name || ' ' || u.last_name, 'A patient')
   INTO patient_name
   FROM public.users u WHERE u.id = NEW.booking_user_id;
+  
+  -- Use on_behalf_of name if it exists
+  IF NEW.on_behalf_of_patient_name IS NOT NULL THEN
+    patient_name := NEW.on_behalf_of_patient_name;
+  END IF;
+
+  notification_data := jsonb_build_object(
+    'partner_name', partner_name,
+    'patient_name', patient_name,
+    'appointment_time', to_char(NEW.appointment_time, 'Mon DD at HH24:MI')
+  );
+
   IF TG_OP = 'INSERT' THEN
     recipient_id := NEW.partner_id;
-    notification_title := 'New Booking';
-    notification_body := patient_name || ' has requested an appointment.';
+    notification_type := 'NEW_BOOKING';
   ELSIF TG_OP = 'UPDATE' THEN
     IF OLD.status <> NEW.status THEN
       IF OLD.status = 'Pending' AND NEW.status = 'Confirmed' THEN
         recipient_id := NEW.booking_user_id;
-        notification_title := 'Appointment Confirmed!';
-        notification_body := 'Your appointment with ' || partner_name || ' on ' || to_char(NEW.appointment_time, 'Mon DD at HH24:MI') || ' is confirmed.';
-      END IF;
-      IF OLD.status = 'Pending' AND NEW.status = 'Cancelled_ByPartner' THEN
+        notification_type := 'APPOINTMENT_CONFIRMED';
+      ELSIF (OLD.status = 'Pending' OR OLD.status = 'Confirmed') AND NEW.status = 'Cancelled_ByPartner' THEN
         recipient_id := NEW.booking_user_id;
-        notification_title := 'Appointment Declined';
-        notification_body := 'Unfortunately, ' || partner_name || ' was unable to accept your appointment request.';
-      END IF;
-      IF OLD.status = 'Confirmed' AND NEW.status = 'Cancelled_ByPartner' THEN
-        recipient_id := NEW.booking_user_id;
-        notification_title := 'Appointment Canceled';
-        notification_body := 'Unfortunately, your upcoming appointment with ' || partner_name || ' has been canceled.';
-      END IF;
-      IF NEW.status = 'Cancelled_ByUser' THEN
+        notification_type := 'APPOINTMENT_CANCELLED_BY_PARTNER';
+      ELSIF NEW.status = 'Cancelled_ByUser' THEN
         recipient_id := NEW.partner_id;
-        notification_title := 'Booking Canceled';
-        notification_body := patient_name || ' has canceled their appointment for ' || to_char(NEW.appointment_time, 'Mon DD at HH24:MI') || '.';
+        notification_type := 'APPOINTMENT_CANCELLED_BY_USER';
       END IF;
     END IF;
   END IF;
-  IF recipient_id IS NOT NULL THEN
+
+  IF recipient_id IS NOT NULL AND notification_type IS NOT NULL THEN
     PERFORM net.http_post(
         url:='https://jtoeizfokgydtsqdciuu.supabase.co/functions/v1/send-notification',
         headers:=jsonb_build_object('Content-Type', 'application/json','Authorization', 'Bearer ' || current_setting('request.jwt.claim.raw', true)),
         body:=jsonb_build_object(
             'recipient_user_id', recipient_id,
-            'title', notification_title,
-            'body', notification_body
+            'notification_type', notification_type,
+            'data', notification_data
         )
     );
   END IF;
+
   RETURN NEW;
 END;
 $$;
@@ -930,6 +1000,49 @@ $$;
 ALTER FUNCTION "public"."submit_partner_application"("first_name_arg" "text", "last_name_arg" "text", "phone_arg" "text", "address_arg" "text", "national_id_arg" "text", "license_id_arg" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."submit_review"("appointment_id_arg" bigint, "rating_arg" integer, "comment_arg" "text") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+DECLARE
+  target_appointment RECORD;
+  reviewing_user_id UUID := auth.uid();
+BEGIN
+  -- Find the completed appointment
+  SELECT * INTO target_appointment
+  FROM public.appointments
+  WHERE id = appointment_id_arg AND booking_user_id = reviewing_user_id AND status = 'Completed';
+
+  -- Check if the appointment is valid for review
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'This appointment is not eligible for review.';
+  END IF;
+
+  -- Check if a review already exists for this appointment
+  IF target_appointment.has_review THEN
+    RAISE EXCEPTION 'A review has already been submitted for this appointment.';
+  END IF;
+
+  -- MODIFICATION: Change the review window from 2 hours to 48 hours
+  IF now() > target_appointment.completed_at + INTERVAL '48 hours' THEN
+    RAISE EXCEPTION 'The review period for this appointment has expired.';
+  END IF;
+
+  -- Insert the new review
+  INSERT INTO public.reviews (appointment_id, partner_id, user_id, rating, comment)
+  VALUES (appointment_id_arg, target_appointment.partner_id, reviewing_user_id, rating_arg, comment_arg);
+
+  -- Mark the appointment as having a review to prevent duplicates
+  UPDATE public.appointments
+  SET has_review = TRUE
+  WHERE id = appointment_id_arg;
+
+END;
+$$;
+
+
+ALTER FUNCTION "public"."submit_review"("appointment_id_arg" bigint, "rating_arg" integer, "comment_arg" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."submit_review"("appointment_id_arg" bigint, "rating_arg" numeric, "review_text_arg" "text") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO ''
@@ -940,20 +1053,26 @@ BEGIN
   SELECT * INTO target_appointment
   FROM public.appointments
   WHERE id = appointment_id_arg AND booking_user_id = auth.uid();
+
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Appointment not found or you do not have permission to review it.';
   END IF;
+
   IF target_appointment.status <> 'Completed' THEN
     RAISE EXCEPTION 'You can only review completed appointments.';
   END IF;
+
   IF target_appointment.has_review = TRUE THEN
     RAISE EXCEPTION 'A review has already been submitted for this appointment.';
   END IF;
-  IF target_appointment.completed_at IS NULL OR now() > target_appointment.completed_at + INTERVAL '2 hours' THEN
+
+  IF target_appointment.completed_at IS NULL OR now() > target_appointment.completed_at + INTERVAL '48 hours' THEN
     RAISE EXCEPTION 'The 2-hour window to submit a review has passed.';
   END IF;
+
   INSERT INTO public.reviews(appointment_id, user_id, partner_id, rating, review_text)
   VALUES(appointment_id_arg, auth.uid(), target_appointment.partner_id, rating_arg, review_text_arg);
+
   UPDATE public.appointments
   SET has_review = TRUE
   WHERE id = appointment_id_arg;
@@ -1679,6 +1798,12 @@ GRANT ALL ON FUNCTION "public"."get_partner_analytics"("partner_id_arg" "uuid") 
 
 
 
+GRANT ALL ON FUNCTION "public"."get_partner_dashboard_appointments"("partner_id_arg" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_partner_dashboard_appointments"("partner_id_arg" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_partner_dashboard_appointments"("partner_id_arg" "uuid") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."get_reviews_with_user_names"("partner_id_arg" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."get_reviews_with_user_names"("partner_id_arg" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_reviews_with_user_names"("partner_id_arg" "uuid") TO "service_role";
@@ -1724,6 +1849,12 @@ GRANT ALL ON FUNCTION "public"."send_appointment_reminders"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."submit_partner_application"("first_name_arg" "text", "last_name_arg" "text", "phone_arg" "text", "address_arg" "text", "national_id_arg" "text", "license_id_arg" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."submit_partner_application"("first_name_arg" "text", "last_name_arg" "text", "phone_arg" "text", "address_arg" "text", "national_id_arg" "text", "license_id_arg" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."submit_partner_application"("first_name_arg" "text", "last_name_arg" "text", "phone_arg" "text", "address_arg" "text", "national_id_arg" "text", "license_id_arg" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."submit_review"("appointment_id_arg" bigint, "rating_arg" integer, "comment_arg" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."submit_review"("appointment_id_arg" bigint, "rating_arg" integer, "comment_arg" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."submit_review"("appointment_id_arg" bigint, "rating_arg" integer, "comment_arg" "text") TO "service_role";
 
 
 
