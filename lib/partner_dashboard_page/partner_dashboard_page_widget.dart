@@ -16,28 +16,6 @@ import 'components/now_serving_card.dart';
 
 export 'partner_dashboard_page_model.dart';
 
-// Helper function to consistently get patient display info
-(String, String) _getPatientDisplayInfo(Map<String, dynamic> appointmentData) {
-  final onBehalfOfName =
-      appointmentData['on_behalf_of_patient_name'] as String?;
-  final onBehalfOfPhone =
-      appointmentData['on_behalf_of_patient_phone'] as String?;
-
-  final patientFirstName = appointmentData['patient_first_name'] as String?;
-  final patientLastName = appointmentData['patient_last_name'] as String?;
-  final patientPhone = appointmentData['patient_phone'] as String?;
-
-  final bookingUserName =
-      ('${patientFirstName ?? ''} ${patientLastName ?? ''}').trim();
-
-  // Use 'on behalf of' info first for manually added patients.
-  final displayName = onBehalfOfName ??
-      (bookingUserName.isNotEmpty ? bookingUserName : 'A Patient');
-  final displayPhone = onBehalfOfPhone ?? patientPhone ?? 'No phone provided';
-
-  return (displayName, displayPhone);
-}
-
 class PartnerDashboardPageWidget extends StatefulWidget {
   const PartnerDashboardPageWidget({
     super.key,
@@ -456,7 +434,7 @@ class _ClinicScheduleViewState extends State<_ClinicScheduleView> {
               final doctors = snapshot.data!;
               return DropdownButtonFormField<String>(
                 // Use initialValue for DropdownButtonFormField
-                value: _selectedDoctorId,
+                initialValue: _selectedDoctorId,
                 hint: Text(FFLocalizations.of(context).getText('fltrdoc')),
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
@@ -1237,7 +1215,7 @@ class _AppointmentInfoCard extends StatelessWidget {
     final appointmentId = appointmentData['id'];
     final appointmentTime =
         DateTime.parse(appointmentData['appointment_time']).toLocal();
-    final (displayName, displayPhone) = _getPatientDisplayInfo(appointmentData);
+    final (displayName, displayPhone) = getPatientDisplayInfo(appointmentData);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1429,7 +1407,7 @@ class _UpNextQueueCard extends StatelessWidget {
     final theme = FlutterFlowTheme.of(context);
     final client = Supabase.instance.client;
     final appointmentId = appointmentData['id'];
-    final (displayName, _) = _getPatientDisplayInfo(appointmentData);
+    final (displayName, _) = getPatientDisplayInfo(appointmentData);
     final appointmentNumber = appointmentData['appointment_number'];
     return Card(
       elevation: 1,

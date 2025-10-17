@@ -3,6 +3,28 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 
+// Helper function to consistently get patient display info
+(String, String) getPatientDisplayInfo(Map<String, dynamic> appointmentData) {
+  final onBehalfOfName =
+      appointmentData['on_behalf_of_patient_name'] as String?;
+  final onBehalfOfPhone =
+      appointmentData['on_behalf_of_patient_phone'] as String?;
+
+  final patientFirstName = appointmentData['patient_first_name'] as String?;
+  final patientLastName = appointmentData['patient_last_name'] as String?;
+  final patientPhone = appointmentData['patient_phone'] as String?;
+
+  final bookingUserName =
+      ('${patientFirstName ?? ''} ${patientLastName ?? ''}').trim();
+
+  // Use 'on behalf of' info first for manually added patients.
+  final displayName = onBehalfOfName ??
+      (bookingUserName.isNotEmpty ? bookingUserName : 'A Patient');
+  final displayPhone = onBehalfOfPhone ?? patientPhone ?? 'No phone provided';
+
+  return (displayName, displayPhone);
+}
+
 // This function shows a styled confirmation dialog
 Future<bool> showStyledConfirmationDialog({
   required BuildContext context,

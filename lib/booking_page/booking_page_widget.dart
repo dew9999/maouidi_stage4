@@ -346,8 +346,11 @@ class __NumberQueueBookingViewState extends State<_NumberQueueBookingView> {
     final dayOfWeekKey = _selectedDate.weekday.toString();
     final isWorkingDay = widget.workingHours.containsKey(dayOfWeekKey);
 
+    // FIX: Add a check for past dates
+    final isPastDay = _selectedDate.isBefore(DateTime.now().startOfDay);
+
     final bool isButtonDisabled =
-        _isLoading || isDateInClosedDays || !isWorkingDay;
+        _isLoading || isDateInClosedDays || !isWorkingDay || isPastDay;
 
     return Column(
       children: [
@@ -391,9 +394,16 @@ class __NumberQueueBookingViewState extends State<_NumberQueueBookingView> {
                     color: theme.primary),
                 const SizedBox(height: 16),
                 Text(
-                  '${widget.partnerCategory == 'Homecare' ? FFLocalizations.of(context).getText('requestvisit') : FFLocalizations.of(context).getText('getnumberfor')}\n${DateFormat.yMMMMd().format(_selectedDate)}',
+                  // MODIFICATION: Make it clearer that this is for a specific day
+                  '${widget.partnerCategory == 'Homecare' ? FFLocalizations.of(context).getText('requestvisit') : FFLocalizations.of(context).getText('getnumberfor')} for the day of:',
                   textAlign: TextAlign.center,
                   style: theme.headlineSmall,
+                ),
+                Text(
+                  DateFormat.yMMMMd().format(_selectedDate),
+                  textAlign: TextAlign.center,
+                  style:
+                      theme.headlineSmall.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -402,7 +412,16 @@ class __NumberQueueBookingViewState extends State<_NumberQueueBookingView> {
                   style: theme.bodyLarge,
                 ),
                 const Spacer(),
-                if (isDateInClosedDays)
+                if (isPastDay)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Text(
+                      'You cannot book for a past date.',
+                      textAlign: TextAlign.center,
+                      style: theme.bodyMedium.copyWith(color: theme.error),
+                    ),
+                  )
+                else if (isDateInClosedDays)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: Text(

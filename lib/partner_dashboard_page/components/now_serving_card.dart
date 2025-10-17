@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../flutter_flow/flutter_flow_theme.dart';
 import '../../flutter_flow/flutter_flow_widgets.dart';
 import 'homecare_details_view.dart';
-import 'dashboard_helpers.dart'; // CORRECTED: Import from the new helper file
+import 'dashboard_helpers.dart'; // Import the new helper file
 
 class NowServingCard extends StatelessWidget {
   const NowServingCard({
@@ -22,14 +22,10 @@ class NowServingCard extends StatelessWidget {
     final theme = FlutterFlowTheme.of(context);
     final client = Supabase.instance.client;
     final appointmentId = appointmentData['id'];
-    final userData = appointmentData['users'] as Map<String, dynamic>? ?? {};
-    final bookingUserName =
-        ('${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}')
-            .trim();
-    final onBehalfOfName =
-        appointmentData['on_behalf_of_patient_name'] as String?;
-    final displayName = onBehalfOfName ??
-        (bookingUserName.isNotEmpty ? bookingUserName : 'A Patient');
+
+    // FIX: Use the central helper function for consistency and correctness.
+    final (displayName, _) = getPatientDisplayInfo(appointmentData);
+
     final appointmentNumber = appointmentData['appointment_number'];
 
     return Card(

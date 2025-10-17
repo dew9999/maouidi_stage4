@@ -129,13 +129,10 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
 
             final oldStatus = _previousAppointmentStatuses[id];
 
-            // This is the "real-world" logic:
-            // Check if a specific appointment has changed from 'Pending' to 'Confirmed'.
             if (oldStatus == 'Pending' && newStatus == 'Confirmed') {
               _checkIfHomecareAndShowDialog(appointment['partner_id']);
               needsRefresh = true;
             } else if (oldStatus != null && oldStatus != newStatus) {
-              // Also refresh for any other status change (e.g., cancelled)
               needsRefresh = true;
             }
           }
@@ -144,7 +141,6 @@ class _PatientDashboardWidgetState extends State<PatientDashboardWidget>
             _refreshNotifier.value++;
           }
 
-          // Update the state for the next comparison
           _previousAppointmentStatuses = newStatuses;
         });
   }
@@ -322,8 +318,7 @@ class PatientAppointmentCard extends StatelessWidget {
     final theme = FlutterFlowTheme.of(context);
     final status = appointmentData['status'] as String? ?? '';
     final appointmentId = appointmentData['id'];
-
-    final bool canCancel = status == 'Pending' || status == 'Confirmed';
+    final canCancel = status == 'Pending' || status == 'Confirmed';
 
     bool canLeaveReview = false;
     if (status == 'Completed') {
@@ -331,8 +326,9 @@ class PatientAppointmentCard extends StatelessWidget {
       final completedAtStr = appointmentData['completed_at'] as String?;
       if (!hasReview && completedAtStr != null) {
         final completedAt = DateTime.parse(completedAtStr);
+        // MODIFICATION: Changed the review window from 2 hours to 48 hours
         if (DateTime.now()
-            .isBefore(completedAt.add(const Duration(hours: 2)))) {
+            .isBefore(completedAt.add(const Duration(hours: 48)))) {
           canLeaveReview = true;
         }
       }

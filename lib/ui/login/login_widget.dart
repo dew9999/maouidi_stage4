@@ -123,10 +123,10 @@ class _LoginWidgetState extends State<LoginWidget>
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircleAvatar(
+                            const CircleAvatar(
                               radius: 50.0,
                               backgroundColor: Colors.transparent,
-                              backgroundImage: const NetworkImage(
+                              backgroundImage: NetworkImage(
                                 'https://jtoeizfokgydtsqdciuu.supabase.co/storage/v1/object/public/logo/1000.png',
                               ),
                             ),
@@ -135,7 +135,7 @@ class _LoginWidgetState extends State<LoginWidget>
                                   0.0, 12.0, 0.0, 0.0),
                               child: Text(
                                 FFLocalizations.of(context).getText(
-                                  'elr6im80',
+                                  'elr6im80', /* Sign In */
                                 ),
                                 style: FlutterFlowTheme.of(context)
                                     .typography
@@ -147,7 +147,7 @@ class _LoginWidgetState extends State<LoginWidget>
                                   0.0, 4.0, 0.0, 0.0),
                               child: Text(
                                 FFLocalizations.of(context).getText(
-                                  'bw1u9riq',
+                                  'bw1u9riq', /* Use the account below to sign in. */
                                 ),
                                 style: FlutterFlowTheme.of(context)
                                     .typography
@@ -175,7 +175,7 @@ class _LoginWidgetState extends State<LoginWidget>
                               obscureText: false,
                               decoration: InputDecoration(
                                 labelText: FFLocalizations.of(context).getText(
-                                  'mwny79n8',
+                                  'mwny79n8', /* Email Address */
                                 ),
                                 labelStyle: FlutterFlowTheme.of(context)
                                     .typography
@@ -233,7 +233,7 @@ class _LoginWidgetState extends State<LoginWidget>
                                 decoration: InputDecoration(
                                   labelText:
                                       FFLocalizations.of(context).getText(
-                                    'rfkbeomw',
+                                    'rfkbeomw', /* Password */
                                   ),
                                   labelStyle: FlutterFlowTheme.of(context)
                                       .typography
@@ -307,7 +307,6 @@ class _LoginWidgetState extends State<LoginWidget>
                                         false)) {
                                       return;
                                     }
-                                    // --- THIS IS THE FIX ---
                                     try {
                                       final user =
                                           await authManager.signInWithEmail(
@@ -331,7 +330,7 @@ class _LoginWidgetState extends State<LoginWidget>
                                         context.goNamed('HomePage');
                                       }
                                     } on AuthException catch (e) {
-                                      // Catch specific Supabase auth errors
+                                      // Catch specific Supabase auth errors and show the message
                                       if (mounted) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
@@ -344,10 +343,9 @@ class _LoginWidgetState extends State<LoginWidget>
                                         );
                                       }
                                     }
-                                    // --------------------------
                                   },
                                   text: FFLocalizations.of(context).getText(
-                                    'j50kiywl',
+                                    'j50kiywl', /* Sign In */
                                   ),
                                   options: FFButtonOptions(
                                     width: double.infinity,
@@ -377,7 +375,7 @@ class _LoginWidgetState extends State<LoginWidget>
                                   context.pushNamed('ForgotPassword');
                                 },
                                 text: FFLocalizations.of(context).getText(
-                                  '0simneyn',
+                                  '0simneyn', /* Forgot Password */
                                 ),
                                 options: FFButtonOptions(
                                   width: 230.0,

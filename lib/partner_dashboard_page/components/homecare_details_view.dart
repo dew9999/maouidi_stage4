@@ -32,9 +32,10 @@ class HomecareDetailsView extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          // --- THIS IS THE REAL FIX ---
+          // FIX: Use a semi-transparent black for better contrast on gradients
           color: lightTheme
-              ? theme.primary.withOpacity(0.2)
+              // ignore: deprecated_member_use
+              ? Colors.black.withOpacity(0.15)
               : theme.primaryBackground,
           borderRadius: BorderRadius.circular(8),
         ),

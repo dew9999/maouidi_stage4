@@ -847,5 +847,27 @@ Veuillez remplacer ce texte par vos propres conditions d'utilisation.
           'Remarque : Ce service n\'est pas destiné aux urgences. Si votre cas est critique, veuillez contacter le service d\'urgence le plus proche.'
     }
   },
-// Make sure this reduce function is at the end
+  {
+    'charity_no_booking': {
+      'en': 'This is a non-profit organization. Booking is not available.',
+      'ar': 'هذه منظمة غير ربحية. الحجز غير متاح.',
+      'fr':
+          'Ceci est une organisation à but non lucratif. La réservation n\'est pas disponible.'
+    },
+    'partner_inactive': {
+      'en': 'This partner is not currently accepting appointments.',
+      'ar': 'هذا الشريك لا يقبل المواعيد حاليًا.',
+      'fr': 'Ce partenaire n\'accepte pas de rendez-vous pour le moment.'
+    },
+    'past_date_booking_error': {
+      'en': 'You cannot book an appointment for a past date.',
+      'ar': 'لا يمكنك حجز موعد في تاريخ سابق.',
+      'fr': 'Vous ne pouvez pas réserver de rendez-vous à une date antérieure.'
+    },
+    'time_validation_error': {
+      'en': 'End time must be after start time.',
+      'ar': 'يجب أن يكون وقت الانتهاء بعد وقت البدء.',
+      'fr': 'L\'heure de fin doit être postérieure à l\'heure de début.'
+    }
+  }
 ].reduce((a, b) => a..addAll(b));

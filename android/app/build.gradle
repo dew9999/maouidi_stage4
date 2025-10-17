@@ -30,20 +30,17 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace "com.mycompany.maouidi"
-    compileSdkVersion 35
+    // MODIFICATION: Use the latest stable SDK version for production
+    compileSdkVersion 34
 
     compileOptions {
         coreLibraryDesugaringEnabled true
-        // ===== START: THIS IS THE FIX =====
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-        // ===== END: THIS IS THE FIX =====
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        // ===== START: THIS IS THE FIX =====
-        jvmTarget = '17'
-        // ===== END: THIS IS THE FIX =====
+        jvmTarget = '1.8'
     }
 
     sourceSets {
@@ -58,7 +55,8 @@ android {
     defaultConfig {
         applicationId "com.mycompany.maouidi"
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 35
+        // MODIFICATION: Target the latest stable SDK version
+        targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -67,7 +65,8 @@ android {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storeFile keystoreProperties['storeFile'] ?
+                file(keystoreProperties['storeFile']) : null
             storePassword keystoreProperties['storePassword']
         }
     }
@@ -85,6 +84,6 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0"
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }

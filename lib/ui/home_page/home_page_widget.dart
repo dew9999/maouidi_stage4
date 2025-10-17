@@ -1,5 +1,6 @@
 // lib/ui/home_page/home_page_widget.dart
 
+import 'package:cached_network_image/cached_network_image.dart'; // Add this import
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -8,6 +9,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'home_page_model.dart';
 export 'home_page_model.dart';
+import '../../core/constants.dart'; // Import for the defaultAvatarUrl
 
 class HomePageWidget extends StatefulWidget {
   const HomePageWidget({super.key});
@@ -306,21 +308,17 @@ class _FeaturedPartnerCard extends StatelessWidget {
               SizedBox(
                 height: 120,
                 width: double.infinity,
-                child: Image.network(
-                  partner.photoUrl ??
-                      'https://storage.googleapis.com/flutterflow-io-6f20.appspot.com/projects/health-app-j75f2j/assets/7957s72h1p38/avatar-default.png',
+                child: CachedNetworkImage(
+                  imageUrl: partner.photoUrl ?? defaultAvatarUrl,
                   fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: theme.alternate,
-                      child: Icon(Icons.person,
-                          size: 60, color: theme.secondaryText),
-                    );
-                  },
+                  placeholder: (context, url) => Container(
+                    color: theme.alternate,
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: theme.alternate,
+                    child: Icon(Icons.person,
+                        size: 60, color: theme.secondaryText),
+                  ),
                 ),
               ),
               Padding(

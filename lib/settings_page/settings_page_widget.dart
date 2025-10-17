@@ -1,6 +1,7 @@
 // lib/settings_page/settings_page_widget.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import for input formatters
 import '../../auth/supabase_auth/auth_util.dart';
 import '../../core/constants.dart';
 import '../../backend/supabase/supabase.dart';
@@ -575,6 +576,17 @@ class _PartnerSettingsViewState extends State<_PartnerSettingsView> {
                     child: TextFormField(
                       controller: _limitController,
                       keyboardType: TextInputType.number,
+                      // MODIFICATION: Add input formatter and validation
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (val) {
+                        if (val == null || val.isEmpty) {
+                          return 'Required';
+                        }
+                        if ((int.tryParse(val) ?? 0) <= 0) {
+                          return ' > 0';
+                        }
+                        return null;
+                      },
                       textAlign: TextAlign.end,
                       decoration: InputDecoration(
                           border: InputBorder.none,
@@ -683,9 +695,9 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     _hours = Map<String, List<String>>.from(widget.initialHours);
   }
 
+  // MODIFICATION: Entire method updated for validation
   Future<void> _editTimeSlot(
       BuildContext context, String dayKey, int slotIndex) async {
-    final theme = FlutterFlowTheme.of(context);
     final parts = _hours[dayKey]![slotIndex].split('-');
     TimeOfDay startTime = TimeOfDay(
         hour: int.parse(parts[0].split(':')[0]),
@@ -703,6 +715,19 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     final newEndTime = await showTimePicker(
         context: context, initialTime: endTime, helpText: 'Select End Time');
     if (newEndTime != null) {
+      // Validation check
+      final startMinutes = newStartTime.hour * 60 + newStartTime.minute;
+      final endMinutes = newEndTime.hour * 60 + newEndTime.minute;
+      if (endMinutes <= startMinutes) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('End time must be after start time.'),
+            backgroundColor: Colors.red,
+          ));
+        }
+        return;
+      }
+
       setState(() {
         final formattedStart =
             '${newStartTime.hour.toString().padLeft(2, '0')}:${newStartTime.minute.toString().padLeft(2, '0')}';
@@ -714,9 +739,10 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     }
   }
 
+  // MODIFICATION: Entire method updated for validation
   Future<void> _addTimeSlot(BuildContext context, String dayKey) async {
-    TimeOfDay startTime = const TimeOfDay(hour: 9, minute: 0);
-    TimeOfDay endTime = const TimeOfDay(hour: 17, minute: 0);
+    const startTime = TimeOfDay(hour: 9, minute: 0);
+    const endTime = TimeOfDay(hour: 17, minute: 0);
 
     final newStartTime = await showTimePicker(
         context: context,
@@ -727,6 +753,20 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     final newEndTime = await showTimePicker(
         context: context, initialTime: endTime, helpText: 'Select End Time');
     if (newEndTime != null) {
+      // Validation check
+      final startMinutes = newStartTime.hour * 60 + newStartTime.minute;
+      final endMinutes = newEndTime.hour * 60 + newEndTime.minute;
+
+      if (endMinutes <= startMinutes) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('End time must be after start time.'),
+            backgroundColor: Colors.red,
+          ));
+        }
+        return;
+      }
+
       setState(() {
         final formattedStart =
             '${newStartTime.hour.toString().padLeft(2, '0')}:${newStartTime.minute.toString().padLeft(2, '0')}';

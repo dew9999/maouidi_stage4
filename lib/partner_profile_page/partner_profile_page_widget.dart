@@ -215,10 +215,10 @@ class _ProfileBodyState extends State<_ProfileBody> {
   Widget _buildSliverAppBar(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     final isClinic = widget.partnerData.category == 'Clinics';
-    final photoUrl = widget.partnerData.photoUrl ?? '';
-    // FIX: Check if the URL is a valid Supabase Storage URL
-    final isPhotoValid =
-        photoUrl.startsWith('https://jtoeizfokgydtsqdciuu.supabase.co');
+    final photoUrl = widget.partnerData.photoUrl;
+    // FIX: This check is too specific. We'll simply check if the URL is not null or empty.
+    // The Image.network widget's errorBuilder will handle any invalid URLs gracefully.
+    final bool isPhotoValid = photoUrl != null && photoUrl.isNotEmpty;
     final isOwnProfile = currentUserUid == widget.partnerData.id;
 
     return SliverAppBar(
@@ -369,30 +369,65 @@ class _ProfileBodyState extends State<_ProfileBody> {
   Widget _buildActionButtons(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     final isOwnProfile = currentUserUid == widget.partnerData.id;
+    final isCharity = widget.partnerData.category == 'Charities';
 
+    // Don't show any buttons for clinics or for the partner viewing their own profile.
     if (isOwnProfile || widget.partnerData.category == 'Clinics') {
       return const SizedBox.shrink();
     }
 
+    // If the partner is a charity, show an informational message instead of a button.
+    if (isCharity) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Text(
+          FFLocalizations.of(context).getText('charity_no_booking'),
+          textAlign: TextAlign.center,
+          style: theme.bodyMedium.copyWith(color: theme.secondaryText),
+        ),
+      );
+    }
+
+    // Check if the partner is active for all other categories.
+    final bool isActive = widget.partnerData.isActive ?? false;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: FFButtonWidget(
-        onPressed: () {
-          context.pushNamed(
-            BookingPageWidget.routeName,
-            queryParameters: {'partnerId': widget.partnerData.id}.withoutNulls,
-          );
-        },
-        text: FFLocalizations.of(context).getText('bookappt'),
-        icon: const Icon(Icons.calendar_month_rounded),
-        options: FFButtonOptions(
-          width: double.infinity,
-          height: 50.0,
-          color: theme.primary,
-          textStyle: theme.titleSmall.copyWith(color: Colors.white),
-          elevation: 2.0,
-          borderRadius: BorderRadius.circular(8.0),
-        ),
+      child: Column(
+        children: [
+          FFButtonWidget(
+            onPressed: isActive
+                ? () {
+                    context.pushNamed(
+                      BookingPageWidget.routeName,
+                      queryParameters:
+                          {'partnerId': widget.partnerData.id}.withoutNulls,
+                    );
+                  }
+                : null,
+            text: FFLocalizations.of(context).getText('bookappt'),
+            icon: const Icon(Icons.calendar_month_rounded),
+            options: FFButtonOptions(
+              width: double.infinity,
+              height: 50.0,
+              color: theme.primary,
+              textStyle: theme.titleSmall.copyWith(color: Colors.white),
+              elevation: 2.0,
+              borderRadius: BorderRadius.circular(8.0),
+              disabledColor: theme.alternate,
+              disabledTextColor: theme.secondaryText,
+            ),
+          ),
+          if (!isActive)
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Text(
+                FFLocalizations.of(context).getText('partner_inactive'),
+                textAlign: TextAlign.center,
+                style: theme.bodyMedium.copyWith(color: theme.secondaryText),
+              ),
+            ),
+        ],
       ),
     );
   }
