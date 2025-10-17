@@ -157,7 +157,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
     try {
       final file = File(imageFile.path);
       final fileExt = imageFile.path.split('.').last;
-      final fileName = '${currentUserUid}.$fileExt';
+      final fileName = '$currentUserUid.$fileExt';
       final filePath = '$currentUserUid/$fileName';
 
       await Supabase.instance.client.storage.from('avatars').upload(
