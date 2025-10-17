@@ -55,6 +55,7 @@ dependencies:
   timeago: ^3.7.1
   url_launcher: ^6.3.2
   webview_flutter: ^4.13.0
+  image_picker: ^1.1.2
 
   # Additional UI packages
   cupertino_icons: ^1.0.0

@@ -869,5 +869,297 @@ Veuillez remplacer ce texte par vos propres conditions d'utilisation.
       'ar': 'يجب أن يكون وقت الانتهاء بعد وقت البدء.',
       'fr': 'L\'heure de fin doit être postérieure à l\'heure de début.'
     }
-  }
+  },
+  {
+    'status_pending': {
+      'en': 'Pending',
+      'ar': 'قيد الانتظار',
+      'fr': 'En attente'
+    },
+    'status_confirmed': {'en': 'Confirmed', 'ar': 'مؤكد', 'fr': 'Confirmé'},
+    'status_completed': {'en': 'Completed', 'ar': 'مكتمل', 'fr': 'Terminé'},
+    'status_cancelled_by_user': {
+      'en': 'Canceled by You',
+      'ar': 'ملغى من طرفك',
+      'fr': 'Annulé par vous'
+    },
+    'status_cancelled_by_partner': {
+      'en': 'Canceled by Partner',
+      'ar': 'ملغى من طرف الشريك',
+      'fr': 'Annulé par le partenaire'
+    },
+    'status_no_show': {'en': 'No-Show', 'ar': 'لم يحضر', 'fr': 'Absent'},
+    'status_rescheduled': {
+      'en': 'Rescheduled',
+      'ar': 'معاد جدولته',
+      'fr': 'Reprogrammé'
+    },
+  },
+  {
+    'specialty_anatomy_and_pathological_cytology': {
+      'en': 'Anatomy and Pathological Cytology',
+      'ar': 'التشريح والخلية المرضية',
+      'fr': 'Anatomie et Cytologie Pathologiques'
+    },
+    'specialty_cardiology': {
+      'en': 'Cardiology',
+      'ar': 'طب القلب',
+      'fr': 'Cardiologie'
+    },
+    'specialty_dermatology_and_venereology': {
+      'en': 'Dermatology and Venereology',
+      'ar': 'الأمراض الجلدية والتناسلية',
+      'fr': 'Dermatologie et Vénéréologie'
+    },
+    'specialty_endocrinology_and_diabetology': {
+      'en': 'Endocrinology and Diabetology',
+      'ar': 'الغدد الصماء والسكري',
+      'fr': 'Endocrinologie et Diabétologie'
+    },
+    'specialty_epidemiology_and_preventive_medicine': {
+      'en': 'Epidemiology and Preventive Medicine',
+      'ar': 'علم الأوبئة والطب الوقائي',
+      'fr': 'Épidémiologie et Médecine Préventive'
+    },
+    'specialty_gastroenterology_and_hepatology': {
+      'en': 'Gastroenterology and Hepatology',
+      'ar': 'أمراض الجهاز الهضمي والكبد',
+      'fr': 'Gastro-entérologie et Hépatologie'
+    },
+    'specialty_hematology_clinical': {
+      'en': 'Hematology (Clinical)',
+      'ar': 'أمراض الدم (السريرية)',
+      'fr': 'Hématologie (Clinique)'
+    },
+    'specialty_infectious_diseases': {
+      'en': 'Infectious Diseases',
+      'ar': 'الأمراض المعدية',
+      'fr': 'Maladies Infectieuses'
+    },
+    'specialty_internal_medicine': {
+      'en': 'Internal Medicine',
+      'ar': 'الطب الباطني',
+      'fr': 'Médecine Interne'
+    },
+    'specialty_medical_oncology': {
+      'en': 'Medical Oncology',
+      'ar': 'طب الأورام',
+      'fr': 'Oncologie Médicale'
+    },
+    'specialty_nephrology': {
+      'en': 'Nephrology',
+      'ar': 'طب الكلى',
+      'fr': 'Néphrologie'
+    },
+    'specialty_neurology': {
+      'en': 'Neurology',
+      'ar': 'طب الأعصاب',
+      'fr': 'Neurologie'
+    },
+    'specialty_nuclear_medicine': {
+      'en': 'Nuclear Medicine',
+      'ar': 'الطب النووي',
+      'fr': 'Médecine Nucléaire'
+    },
+    'specialty_pediatrics': {
+      'en': 'Pediatrics',
+      'ar': 'طب الأطفال',
+      'fr': 'Pédiatrie'
+    },
+    'specialty_physical_medicine_and_rehabilitation': {
+      'en': 'Physical Medicine and Rehabilitation',
+      'ar': 'الطب الفيزيائي وإعادة التأهيل',
+      'fr': 'Médecine Physique et de Réadaptation'
+    },
+    'specialty_pneumology': {
+      'en': 'Pneumology',
+      'ar': 'طب الأمراض الصدرية',
+      'fr': 'Pneumologie'
+    },
+    'specialty_psychiatry': {
+      'en': 'Psychiatry',
+      'ar': 'الطب النفسي',
+      'fr': 'Psychiatrie'
+    },
+    'specialty_radiology__medical_imaging': {
+      'en': 'Radiology / Medical Imaging',
+      'ar': 'الأشعة / التصوير الطبي',
+      'fr': 'Radiologie / Imagerie Médicale'
+    },
+    'specialty_radiotherapy': {
+      'en': 'Radiotherapy',
+      'ar': 'العلاج الإشعاعي',
+      'fr': 'Radiothérapie'
+    },
+    'specialty_rheumatology': {
+      'en': 'Rheumatology',
+      'ar': 'طب الروماتيزم',
+      'fr': 'Rhumatologie'
+    },
+    'specialty_sports_medicine': {
+      'en': 'Sports Medicine',
+      'ar': 'الطب الرياضي',
+      'fr': 'Médecine du Sport'
+    },
+    'specialty_anesthesiology_and_reanimation': {
+      'en': 'Anesthesiology and Reanimation',
+      'ar': 'التخدير والإنعاش',
+      'fr': 'Anesthésiologie et Réanimation'
+    },
+    'specialty_cardiovascular_surgery': {
+      'en': 'Cardiovascular Surgery',
+      'ar': 'جراحة القلب والأوعية الدموية',
+      'fr': 'Chirurgie Cardiovasculaire'
+    },
+    'specialty_general_surgery': {
+      'en': 'General Surgery',
+      'ar': 'الجراحة العامة',
+      'fr': 'Chirurgie Générale'
+    },
+    'specialty_maxillofacial_surgery': {
+      'en': 'Maxillofacial Surgery',
+      'ar': 'جراحة الوجه والفكين',
+      'fr': 'Chirurgie Maxillo-faciale'
+    },
+    'specialty_neurosurgery': {
+      'en': 'Neurosurgery',
+      'ar': 'جراحة الأعصاب',
+      'fr': 'Neurochirurgie'
+    },
+    'specialty_obstetrics_and_gynecology': {
+      'en': 'Obstetrics and Gynecology',
+      'ar': 'أمراض النساء والتوليد',
+      'fr': 'Obstétrique et Gynécologie'
+    },
+    'specialty_ophthalmology': {
+      'en': 'Ophthalmology',
+      'ar': 'طب العيون',
+      'fr': 'Ophtalmologie'
+    },
+    'specialty_orthopedics_and_traumatology': {
+      'en': 'Orthopedics and Traumatology',
+      'ar': 'جراحة العظام والمفاصل',
+      'fr': 'Orthopédie et Traumatologie'
+    },
+    'specialty_otorhinolaryngology_ent': {
+      'en': 'Otorhinolaryngology (ENT)',
+      'ar': 'طب الأنف والأذن والحنجرة',
+      'fr': 'Oto-rhino-laryngologie (ORL)'
+    },
+    'specialty_pediatric_surgery': {
+      'en': 'Pediatric Surgery',
+      'ar': 'جراحة الأطفال',
+      'fr': 'Chirurgie Pédiatrique'
+    },
+    'specialty_plastic_reconstructive_and_aesthetic_surgery': {
+      'en': 'Plastic, Reconstructive, and Aesthetic Surgery',
+      'ar': 'الجراحة التجميلية والترميمية',
+      'fr': 'Chirurgie Plastique, Reconstructrice et Esthétique'
+    },
+    'specialty_thoracic_surgery': {
+      'en': 'Thoracic Surgery',
+      'ar': 'جراحة الصدر',
+      'fr': 'Chirurgie Thoracique'
+    },
+    'specialty_urology': {
+      'en': 'Urology',
+      'ar': 'طب المسالك البولية',
+      'fr': 'Urologie'
+    },
+    'specialty_vascular_surgery': {
+      'en': 'Vascular Surgery',
+      'ar': 'جراحة الأوعية الدموية',
+      'fr': 'Chirurgie Vasculaire'
+    },
+    'specialty_biochemistry': {
+      'en': 'Biochemistry',
+      'ar': 'الكيمياء الحيوية',
+      'fr': 'Biochimie'
+    },
+    'specialty_clinical_neurophysiology': {
+      'en': 'Clinical Neurophysiology',
+      'ar': 'الفيزيولوجيا العصبية السريرية',
+      'fr': 'Neurophysiologie Clinique'
+    },
+    'specialty_hematology_biological': {
+      'en': 'Hematology (Biological)',
+      'ar': 'أمراض الدم (البيولوجية)',
+      'fr': 'Hématologie (Biologique)'
+    },
+    'specialty_histology_embryology_and_cytogenetics': {
+      'en': 'Histology, Embryology, and Cytogenetics',
+      'ar': 'علم الأنسجة والأجنة والوراثة الخلوية',
+      'fr': 'Histologie, Embryologie et Cytogénétique'
+    },
+    'specialty_immunology': {
+      'en': 'Immunology',
+      'ar': 'علم المناعة',
+      'fr': 'Immunologie'
+    },
+    'specialty_microbiology': {
+      'en': 'Microbiology',
+      'ar': 'علم الأحياء الدقيقة',
+      'fr': 'Microbiologie'
+    },
+    'specialty_medical_biophysics': {
+      'en': 'Medical Biophysics',
+      'ar': 'الفيزياء الحيوية الطبية',
+      'fr': 'Biophysique Médicale'
+    },
+    'specialty_parasitology_and_mycology': {
+      'en': 'Parasitology and Mycology',
+      'ar': 'علم الطفيليات والفطريات',
+      'fr': 'Parasitologie et Mycologie'
+    },
+    'specialty_pharmacology': {
+      'en': 'Pharmacology',
+      'ar': 'علم الأدوية',
+      'fr': 'Pharmacologie'
+    },
+    'specialty_physiology': {
+      'en': 'Physiology',
+      'ar': 'علم وظائف الأعضاء',
+      'fr': 'Physiologie'
+    },
+    'specialty_toxicology': {
+      'en': 'Toxicology',
+      'ar': 'علم السموم',
+      'fr': 'Toxicologie'
+    },
+    'specialty_child_psychiatry': {
+      'en': 'Child Psychiatry',
+      'ar': 'الطب النفسي للأطفال',
+      'fr': 'Pédopsychiatrie'
+    },
+    'specialty_community_health__public_health': {
+      'en': 'Community Health / Public Health',
+      'ar': 'صحة المجتمع / الصحة العامة',
+      'fr': 'Santé Communautaire / Santé Publique'
+    },
+    'specialty_emergency_medicine': {
+      'en': 'Emergency Medicine',
+      'ar': 'طب الطوارئ',
+      'fr': 'Médecine d\'Urgence'
+    },
+    'specialty_forensic_medicine_and_medical_deontology': {
+      'en': 'Forensic Medicine and Medical Deontology',
+      'ar': 'الطب الشرعي وآداب مهنة الطب',
+      'fr': 'Médecine Légale et Déontologie Médicale'
+    },
+    'specialty_occupational_medicine': {
+      'en': 'Occupational Medicine',
+      'ar': 'طب العمل',
+      'fr': 'Médecine du Travail'
+    },
+    'specialty_stomatology': {
+      'en': 'Stomatology',
+      'ar': 'طب الفم',
+      'fr': 'Stomatologie'
+    },
+    'specialty_transfusion_medicine_hemobiology': {
+      'en': 'Transfusion Medicine (Hemobiology)',
+      'ar': 'طب نقل الدم (بيولوجيا الدم)',
+      'fr': 'Médecine Transfusionnelle (Hémobiologie)'
+    },
+  },
 ].reduce((a, b) => a..addAll(b));

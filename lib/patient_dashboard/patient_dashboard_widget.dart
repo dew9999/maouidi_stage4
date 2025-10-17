@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:maouidi/core/localization_helpers.dart';
 import '../../components/empty_state_widget.dart';
 import '../../flutter_flow/flutter_flow_theme.dart';
 import '../../flutter_flow/flutter_flow_util.dart';
@@ -326,7 +327,6 @@ class PatientAppointmentCard extends StatelessWidget {
       final completedAtStr = appointmentData['completed_at'] as String?;
       if (!hasReview && completedAtStr != null) {
         final completedAt = DateTime.parse(completedAtStr);
-        // MODIFICATION: Changed the review window from 2 hours to 48 hours
         if (DateTime.now()
             .isBefore(completedAt.add(const Duration(hours: 48)))) {
           canLeaveReview = true;
@@ -411,7 +411,7 @@ class PatientAppointmentCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                status,
+                                getLocalizedStatus(context, status),
                                 style: theme.bodyLarge.copyWith(
                                   color: getStatusColor(context, status),
                                   fontWeight: FontWeight.bold,

@@ -1,12 +1,13 @@
+// lib/backend/supabase/supabase.dart
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 export 'database/database.dart';
 
-// Now loading from environment variables
-String _kSupabaseUrl = dotenv.env['SUPABASE_URL'] ?? 'YOUR_FALLBACK_URL';
-String _kSupabaseAnonKey =
-    dotenv.env['SUPABASE_ANON_KEY'] ?? 'YOUR_FALLBACK_KEY';
+// Now loading from environment variables without fallbacks
+String _kSupabaseUrl = dotenv.env['SUPABASE_URL']!;
+String _kSupabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
 
 class SupaFlow {
   SupaFlow._();

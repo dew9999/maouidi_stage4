@@ -308,7 +308,7 @@ DateTime _previousMonth(DateTime month) {
   if (month.month == 1) {
     return DateTime(month.year - 1, 12);
   } else {
-    return DateTime(month.year, month.month + 1);
+    return DateTime(month.year, month.month - 1); // <-- CORRECTED
   }
 }
 

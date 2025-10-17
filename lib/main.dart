@@ -68,6 +68,8 @@ class _MyAppState extends State<MyApp> {
   late GoRouter _router;
 
   late Stream<BaseAuthUser?> userStream;
+  // FIX: Add a Future to track role fetching
+  Future<String?>? _userRoleFuture;
 
   @override
   void initState() {
@@ -75,17 +77,25 @@ class _MyAppState extends State<MyApp> {
     _appStateNotifier = AppStateNotifier.instance;
     _router = createRouter(_appStateNotifier);
     userStream = maouidiSupabaseUserStream()
-      ..listen((user) async {
+      ..listen((user) {
         _appStateNotifier.update(user);
         if (user != null) {
-          final role = await _fetchUserRole(user.uid!);
-          _appStateNotifier.updateUserRole(role);
+          // When the user changes, start fetching their role
+          setState(() {
+            _userRoleFuture = _fetchUserRole(user.uid!);
+          });
+          _userRoleFuture!.then((role) {
+            _appStateNotifier.updateUserRole(role);
+          });
         } else {
+          // If user is null, clear the role and future
           _appStateNotifier.updateUserRole(null);
+          setState(() {
+            _userRoleFuture = null;
+          });
         }
       });
 
-    // MODIFICATION: Load the saved locale when the app starts
     _locale = FFLocalizations.getStoredLocale();
 
     Future.delayed(
@@ -109,8 +119,7 @@ class _MyAppState extends State<MyApp> {
 
   void setLocale(String language) {
     setState(() => _locale = createLocale(language));
-    FFLocalizations.storeLocale(
-        language); // MODIFICATION: Save locale preference
+    FFLocalizations.storeLocale(language);
   }
 
   void setThemeMode(ThemeMode mode) => setState(() {
@@ -130,19 +139,15 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       locale: _locale,
-      // MODIFICATION: Added localeResolutionCallback for better device language detection
       localeResolutionCallback: (locale, supportedLocales) {
-        // If the user has already picked a language, use that
         if (_locale != null) {
           return _locale;
         }
-        // Otherwise, check if the device language is supported
         for (var supportedLocale in supportedLocales) {
           if (supportedLocale.languageCode == locale?.languageCode) {
             return supportedLocale;
           }
         }
-        // If the device language is not supported, fall back to English
         return supportedLocales.first;
       },
       supportedLocales: const [Locale('en'), Locale('ar'), Locale('fr')],

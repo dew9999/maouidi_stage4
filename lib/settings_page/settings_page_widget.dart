@@ -1,7 +1,7 @@
 // lib/settings_page/settings_page_widget.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Import for input formatters
+import 'package:flutter/services.dart';
 import '../../auth/supabase_auth/auth_util.dart';
 import '../../core/constants.dart';
 import '../../backend/supabase/supabase.dart';
@@ -18,7 +18,7 @@ import 'components/settings_group.dart';
 import 'components/settings_item.dart';
 import 'components/become_partner_dialog.dart';
 import 'components/profile_card.dart';
-import 'components/settings_dialogs.dart'; // Import the new dialogs file
+import 'components/settings_dialogs.dart';
 
 class SettingsPageWidget extends StatefulWidget {
   const SettingsPageWidget({super.key});
@@ -66,6 +66,8 @@ class _PatientSettingsView extends StatefulWidget {
 class _PatientSettingsViewState extends State<_PatientSettingsView> {
   bool _isLoading = true;
   bool _notificationsEnabled = true;
+  String _displayName = 'User';
+  String _phoneNumber = '';
 
   @override
   void initState() {
@@ -77,15 +79,18 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      // Only fetch data not available in the global user object
       final userData = await Supabase.instance.client
           .from('users')
-          .select('notifications_enabled')
+          .select('first_name, last_name, phone, notifications_enabled')
           .eq('id', currentUserUid)
           .single();
 
       if (mounted) {
         setState(() {
+          _displayName =
+              '${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}'
+                  .trim();
+          _phoneNumber = userData['phone'] ?? '';
           _notificationsEnabled = userData['notifications_enabled'] ?? true;
         });
       }
@@ -111,7 +116,6 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -120,9 +124,8 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
       child: Column(
         children: [
           const SizedBox(height: 16),
-          // Use the efficient global getters
           ProfileCard(
-            name: currentUserDisplayName,
+            name: _displayName,
             email: currentUserEmail,
             onTap: () => context.pushNamed(UserProfileWidget.routeName),
           ),
@@ -144,54 +147,7 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
               ),
             ],
           ),
-          SettingsGroup(
-            title: FFLocalizations.of(context).getText('general'),
-            children: [
-              SettingsItem(
-                icon: Icons.translate_rounded,
-                title: FFLocalizations.of(context).getText('language'),
-                trailing: DropdownButton<String>(
-                  value: FFLocalizations.of(context).languageCode,
-                  items: const [
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                    DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                    DropdownMenuItem(value: 'fr', child: Text('Français')),
-                  ],
-                  onChanged: (String? languageCode) {
-                    if (languageCode != null) {
-                      MyApp.of(context).setLocale(languageCode);
-                    }
-                  },
-                  underline: const SizedBox.shrink(),
-                  icon: Icon(
-                    Icons.arrow_drop_down,
-                    color: theme.secondaryText,
-                  ),
-                  dropdownColor: theme.secondaryBackground,
-                  style: theme.bodyMedium,
-                ),
-              ),
-              SettingsItem(
-                icon: Icons.brightness_6_outlined,
-                title: FFLocalizations.of(context).getText('darkmode'),
-                trailing: Switch.adaptive(
-                  value: isDarkMode,
-                  activeColor: theme.primary,
-                  onChanged: (isDarkMode) {
-                    final newMode =
-                        isDarkMode ? ThemeMode.dark : ThemeMode.light;
-                    MyApp.of(context).setThemeMode(newMode);
-                  },
-                ),
-              ),
-              SettingsItem(
-                icon: Icons.contact_support_outlined,
-                title: FFLocalizations.of(context).getText('contactus'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => showContactUsDialog(context),
-              ),
-            ],
-          ),
+          _GeneralAndLegalSettings(),
           SettingsGroup(
             title: FFLocalizations.of(context).getText('acctlegal'),
             children: [
@@ -203,22 +159,10 @@ class _PatientSettingsViewState extends State<_PatientSettingsView> {
                 onTap: () => showDialog(
                   context: context,
                   builder: (context) => BecomePartnerDialog(
-                    currentDisplayName: currentUserDisplayName,
-                    currentPhoneNumber: currentPhoneNumber,
+                    currentDisplayName: _displayName,
+                    currentPhoneNumber: _phoneNumber,
                   ),
                 ),
-              ),
-              SettingsItem(
-                icon: Icons.shield_outlined,
-                title: FFLocalizations.of(context).getText('privpolicy'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => context.pushNamed(PrivacyPolicyPage.routeName),
-              ),
-              SettingsItem(
-                icon: Icons.description_outlined,
-                title: FFLocalizations.of(context).getText('termsserv'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => context.pushNamed(TermsOfServicePage.routeName),
               ),
               SettingsItem(
                 icon: Icons.delete_forever_outlined,
@@ -576,7 +520,6 @@ class _PartnerSettingsViewState extends State<_PartnerSettingsView> {
                     child: TextFormField(
                       controller: _limitController,
                       keyboardType: TextInputType.number,
-                      // MODIFICATION: Add input formatter and validation
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (val) {
                         if (val == null || val.isEmpty) {
@@ -629,6 +572,7 @@ class _PartnerSettingsViewState extends State<_PartnerSettingsView> {
               ),
             ],
           ),
+          _GeneralAndLegalSettings(),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16),
             child: FFButtonWidget(
@@ -666,6 +610,84 @@ class _PartnerSettingsViewState extends State<_PartnerSettingsView> {
   }
 }
 
+// =====================================================================
+//                       SHARED SETTINGS WIDGET
+// =====================================================================
+
+class _GeneralAndLegalSettings extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Column(
+      children: [
+        SettingsGroup(
+          title: FFLocalizations.of(context).getText('general'),
+          children: [
+            SettingsItem(
+              icon: Icons.translate_rounded,
+              title: FFLocalizations.of(context).getText('language'),
+              trailing: DropdownButton<String>(
+                value: FFLocalizations.of(context).languageCode,
+                items: const [
+                  DropdownMenuItem(value: 'en', child: Text('English')),
+                  DropdownMenuItem(value: 'ar', child: Text('العربية')),
+                  DropdownMenuItem(value: 'fr', child: Text('Français')),
+                ],
+                onChanged: (String? languageCode) {
+                  if (languageCode != null) {
+                    MyApp.of(context).setLocale(languageCode);
+                  }
+                },
+                underline: const SizedBox.shrink(),
+                icon: Icon(Icons.arrow_drop_down, color: theme.secondaryText),
+                dropdownColor: theme.secondaryBackground,
+                style: theme.bodyMedium,
+              ),
+            ),
+            SettingsItem(
+              icon: Icons.brightness_6_outlined,
+              title: FFLocalizations.of(context).getText('darkmode'),
+              trailing: Switch.adaptive(
+                value: isDarkMode,
+                activeColor: theme.primary,
+                onChanged: (isDarkMode) {
+                  final newMode = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+                  MyApp.of(context).setThemeMode(newMode);
+                },
+              ),
+            ),
+            SettingsItem(
+              icon: Icons.contact_support_outlined,
+              title: FFLocalizations.of(context).getText('contactus'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => showContactUsDialog(context),
+            ),
+          ],
+        ),
+        SettingsGroup(
+          title: 'Legal',
+          children: [
+            SettingsItem(
+              icon: Icons.shield_outlined,
+              title: FFLocalizations.of(context).getText('privpolicy'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => context.pushNamed(PrivacyPolicyPage.routeName),
+            ),
+            SettingsItem(
+              icon: Icons.description_outlined,
+              title: FFLocalizations.of(context).getText('termsserv'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => context.pushNamed(TermsOfServicePage.routeName),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _WorkingHoursEditor extends StatefulWidget {
   final Map<String, List<String>> initialHours;
   final ValueChanged<Map<String, List<String>>> onChanged;
@@ -695,7 +717,6 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     _hours = Map<String, List<String>>.from(widget.initialHours);
   }
 
-  // MODIFICATION: Entire method updated for validation
   Future<void> _editTimeSlot(
       BuildContext context, String dayKey, int slotIndex) async {
     final parts = _hours[dayKey]![slotIndex].split('-');
@@ -715,7 +736,6 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     final newEndTime = await showTimePicker(
         context: context, initialTime: endTime, helpText: 'Select End Time');
     if (newEndTime != null) {
-      // Validation check
       final startMinutes = newStartTime.hour * 60 + newStartTime.minute;
       final endMinutes = newEndTime.hour * 60 + newEndTime.minute;
       if (endMinutes <= startMinutes) {
@@ -739,7 +759,6 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     }
   }
 
-  // MODIFICATION: Entire method updated for validation
   Future<void> _addTimeSlot(BuildContext context, String dayKey) async {
     const startTime = TimeOfDay(hour: 9, minute: 0);
     const endTime = TimeOfDay(hour: 17, minute: 0);
@@ -753,7 +772,6 @@ class _WorkingHoursEditorState extends State<_WorkingHoursEditor> {
     final newEndTime = await showTimePicker(
         context: context, initialTime: endTime, helpText: 'Select End Time');
     if (newEndTime != null) {
-      // Validation check
       final startMinutes = newStartTime.hour * 60 + newStartTime.minute;
       final endMinutes = newEndTime.hour * 60 + newEndTime.minute;
 
